@@ -58,11 +58,13 @@ uv run alembic check
 ## Deploy com Neon e Vercel
 
 1. No [Neon](https://neon.tech), crie uma conta gratuita, selecione **New project**,
-   escolha a região desejada e copie a conexão **pooled** (`-pooler`) com SSL.
+   escolha a região desejada e copie a conexão **pooled** (`-pooler`) exatamente como
+   a Neon fornecer. O scheme e os parâmetros SSL são normalizados automaticamente.
 2. No dashboard da Vercel, selecione **Add New... > Project**, importe este repositório
    do GitHub e mantenha o framework como **Other**. Em **Settings > Environment Variables**,
    adicione:
-   - `DATABASE_URL`: URL pooled do Neon, incluindo `?sslmode=require`
+   - `DATABASE_URL`: URL pooled do Neon, que pode ser colada no formato original fornecido
+     pela Neon; scheme e parâmetros SSL são normalizados automaticamente
    - `APP_ENV`: `production`
    - `DEFAULT_TIMEZONE`: por exemplo `America/Sao_Paulo`
    - `LOG_LEVEL`: `INFO`

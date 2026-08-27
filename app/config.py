@@ -1,8 +1,9 @@
 import os
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 
 def _default_serverless() -> bool:
@@ -17,6 +18,21 @@ class Settings(BaseSettings):
     serverless: bool = Field(default_factory=_default_serverless)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        url = make_url(value)
+        if url.drivername not in {"postgres", "postgresql", "postgresql+asyncpg"}:
+            return value
+        if url.drivername in {"postgres", "postgresql"}:
+            url = url.set(drivername="postgresql+asyncpg")
+        query = dict(url.query)
+        sslmode = query.pop("sslmode", None)
+        query.pop("channel_binding", None)
+        if sslmode is not None:
+            query["ssl"] = sslmode
+        return url.set(query=query).render_as_string(hide_password=False)
 
 
 @lru_cache

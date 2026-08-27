@@ -3,6 +3,8 @@ from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.config import Settings
 from app.db import SessionLocal
@@ -10,6 +12,44 @@ from app.main import app
 from app.models import Food, Goal
 from app.services.nutrition import MacroValues, effective_goal, resolve_entry_macros
 from tests.conftest import create_identity
+
+
+def test_neon_database_url_normalizes_for_asyncpg() -> None:
+    neon_url = (
+        "postgresql://user:pass@ep-xxx-pooler.region.aws.neon.tech/neondb"
+        "?sslmode=require&channel_binding=require"
+    )
+    settings = Settings(database_url=neon_url)
+    assert (
+        settings.database_url
+        == "postgresql+asyncpg://user:pass@ep-xxx-pooler.region.aws.neon.tech/neondb?ssl=require"
+    )
+    engine = create_async_engine(settings.database_url)
+    try:
+        _, connect_args = engine.dialect.create_connect_args(make_url(settings.database_url))
+    finally:
+        engine.sync_engine.dispose()
+    assert connect_args["ssl"] == "require"
+    assert "sslmode" not in connect_args
+
+
+def test_postgres_database_url_gets_asyncpg_driver() -> None:
+    settings = Settings(database_url="postgres://user:pass@localhost/db")
+    assert settings.database_url == "postgresql+asyncpg://user:pass@localhost/db"
+
+
+def test_asyncpg_database_url_passes_through_unchanged() -> None:
+    value = "postgresql+asyncpg://user:pass@localhost/db"
+    assert Settings(database_url=value).database_url == value
+
+
+def test_database_url_preserves_unrelated_query_parameters() -> None:
+    settings = Settings(
+        database_url="postgresql://user:pass@localhost/db?application_name=macro-tracker"
+    )
+    parsed = make_url(settings.database_url)
+    assert parsed.drivername == "postgresql+asyncpg"
+    assert parsed.query["application_name"] == "macro-tracker"
 
 
 def test_macro_resolution_rounds_and_honors_overrides() -> None:
