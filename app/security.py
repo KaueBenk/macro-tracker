@@ -22,6 +22,25 @@ def create_token() -> tuple[str, str]:
     return raw, hash_token(raw)
 
 
+async def resolve_token(session: AsyncSession, raw_token: str) -> User | None:
+    token_hash = hash_token(raw_token)
+    result = await session.execute(
+        select(ApiToken).where(ApiToken.token_hash == token_hash, ApiToken.revoked_at.is_(None))
+    )
+    token = result.scalar_one_or_none()
+    if token is None or not secrets.compare_digest(token.token_hash, token_hash):
+        return None
+    user = await session.get(User, token.user_id)
+    if user is None:
+        return None
+    token.last_used_at = datetime.now(UTC)
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()
+    return user
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     session: AsyncSession = Depends(get_session),
@@ -30,23 +49,9 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing token"
         )
-    token_hash = hash_token(credentials.credentials)
-    result = await session.execute(
-        select(ApiToken).where(ApiToken.token_hash == token_hash, ApiToken.revoked_at.is_(None))
-    )
-    token = result.scalar_one_or_none()
-    if token is None or not secrets.compare_digest(token.token_hash, token_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing token"
-        )
-    user = await session.get(User, token.user_id)
+    user = await resolve_token(session, credentials.credentials)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing token"
         )
-    token.last_used_at = datetime.now(UTC)
-    try:
-        await session.commit()
-    except Exception:
-        await session.rollback()
     return user

@@ -1,7 +1,7 @@
 # macro-tracker
 
-API pessoal para acompanhar calorias e macronutrientes, com FastAPI, PostgreSQL e uma
-camada de autenticação por bearer token. O servidor MCP será adicionado na próxima etapa.
+API pessoal para acompanhar calorias e macronutrientes, com FastAPI, PostgreSQL,
+autenticação por bearer token e servidor MCP para agentes.
 
 ## Desenvolvimento local
 
@@ -54,3 +54,50 @@ uv run ruff format --check .
 uv run mypy app tests
 uv run alembic check
 ```
+
+## Deploy com Neon e Vercel
+
+1. No [Neon](https://neon.tech), crie uma conta gratuita, selecione **New project**,
+   escolha a região desejada e copie a conexão **pooled** (`-pooler`) com SSL.
+2. No dashboard da Vercel, selecione **Add New... > Project**, importe este repositório
+   do GitHub e mantenha o framework como **Other**. Em **Settings > Environment Variables**,
+   adicione:
+   - `DATABASE_URL`: URL pooled do Neon, incluindo `?sslmode=require`
+   - `APP_ENV`: `production`
+   - `DEFAULT_TIMEZONE`: por exemplo `America/Sao_Paulo`
+   - `LOG_LEVEL`: `INFO`
+   - `SERVERLESS`: `true`
+3. Clique em **Deploy**. Pushes na branch conectada geram novos deploys automaticamente.
+4. Para executar as migrações no banco de produção, abra o GitHub em
+   **Settings > Secrets and variables > Actions > New repository secret**, crie o segredo
+   `DATABASE_URL` com a mesma URL pooled do Neon e faça push em `main`. O workflow
+   `migrate.yml` executa `alembic upgrade head`; sem o segredo, ele encerra com aviso e
+   sucesso para não deixar a branch vermelha.
+
+## MCP
+
+O endpoint remoto é `https://<seu-app>.vercel.app/mcp`. O cliente MCP deve enviar o mesmo
+bearer token usado pela API REST:
+
+```json
+{
+  "mcpServers": {
+    "macro-tracker": {
+      "url": "https://<seu-app>.vercel.app/mcp",
+      "headers": {
+        "Authorization": "Bearer <TOKEN>"
+      }
+    }
+  }
+}
+```
+
+Gere um token localmente (ou em um ambiente com `DATABASE_URL` apontando para o Neon):
+
+```bash
+uv run python -m app.cli create-token --email voce@example.com --name agente
+```
+
+O token é exibido uma única vez. As tools aceitam datas locais em `YYYY-MM-DD`, timestamps
+`logged_at` em ISO-8601 e macros em gramas; os nutrientes cadastrados em alimentos são por
+100 g.

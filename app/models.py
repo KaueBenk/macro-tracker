@@ -54,7 +54,9 @@ class ApiToken(TimestampMixin, Base):
     __tablename__ = "api_tokens"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     name: Mapped[str] = mapped_column(String(100))
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -75,7 +77,9 @@ class Food(TimestampMixin, Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     name: Mapped[str] = mapped_column(String(200))
     brand: Mapped[str | None] = mapped_column(String(200))
     kcal: Mapped[Decimal] = mapped_column(Numeric(8, 2))
@@ -122,7 +126,9 @@ class Goal(TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("user_id", "effective_from", name="uq_goal_user_effective"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     effective_from: Mapped[date] = mapped_column(Date)
     kcal: Mapped[Decimal] = mapped_column(Numeric(8, 2))
     protein_g: Mapped[Decimal] = mapped_column(Numeric(8, 2))

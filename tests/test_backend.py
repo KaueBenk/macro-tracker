@@ -4,6 +4,8 @@ from decimal import Decimal
 import pytest
 from httpx import AsyncClient
 
+from app.db import SessionLocal
+from app.main import app
 from app.models import Food, Goal
 from app.services.nutrition import MacroValues, effective_goal, resolve_entry_macros
 from tests.conftest import create_identity
@@ -125,6 +127,8 @@ async def test_goal_history_and_daily_summary_with_and_without_goal(client: Asyn
     assert summary.json()["consumed"]["kcal"] == 500
     assert summary.json()["remaining"]["kcal"] == 1300
     assert summary.json()["percent"]["kcal"] == 27.8
+    assert summary.json()["remaining"]["fiber_g"] == 0
+    assert summary.json()["percent"]["fiber_g"] == 0
     next_day = await client.get("/api/summary/daily?date=2025-01-02", headers=headers)
     assert next_day.json()["entries_count"] == 0
 
@@ -133,3 +137,221 @@ def test_effective_goal_selection() -> None:
     first = Goal(effective_from=date(2025, 1, 1), kcal=1, protein_g=1, carbs_g=1, fat_g=1)
     second = Goal(effective_from=date(2025, 1, 3), kcal=2, protein_g=2, carbs_g=2, fat_g=2)
     assert effective_goal([first, second], date(2025, 1, 2)) is first
+
+
+@pytest.mark.asyncio
+async def test_range_summary_has_daily_totals_and_averages(client: AsyncClient) -> None:
+    _, token = await create_identity("range@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    await client.post(
+        "/api/entries",
+        headers=headers,
+        json={
+            "logged_at": "2025-01-01T12:00:00Z",
+            "meal": "lunch",
+            "kcal": 500,
+            "protein_g": 25,
+            "carbs_g": 50,
+            "fat_g": 10,
+        },
+    )
+    await client.post(
+        "/api/entries",
+        headers=headers,
+        json={
+            "logged_at": "2025-01-02T12:00:00Z",
+            "meal": "dinner",
+            "kcal": 700,
+            "protein_g": 35,
+            "carbs_g": 70,
+            "fat_g": 14,
+        },
+    )
+    response = await client.get("/api/summary/range?from=2025-01-01&to=2025-01-02", headers=headers)
+    assert response.status_code == 200
+    payload = response.json()
+    assert [day["consumed"]["kcal"] for day in payload["days"]] == [500.0, 700.0]
+    assert payload["days"][0]["entries_count"] == 1
+    assert payload["days"][1]["consumed"]["protein_g"] == 35.0
+    assert payload["averages"] == {
+        "kcal": 600.0,
+        "protein_g": 30.0,
+        "carbs_g": 60.0,
+        "fat_g": 12.0,
+        "fiber_g": 0.0,
+    }
+
+
+@pytest.mark.asyncio
+async def test_global_food_search_is_visible_but_private_food_is_scoped(
+    client: AsyncClient,
+) -> None:
+    _, token_a = await create_identity("foods-a@example.com")
+    _, token_b = await create_identity("foods-b@example.com")
+    async with SessionLocal() as session:
+        global_food = Food(
+            user_id=None,
+            name="Global quinoa",
+            kcal=120,
+            protein_g=4,
+            carbs_g=21,
+            fat_g=2,
+        )
+        session.add(global_food)
+        await session.commit()
+    private_response = await client.post(
+        "/api/foods",
+        headers={"Authorization": f"Bearer {token_a}"},
+        json={"name": "Private quinoa", "kcal": 130, "protein_g": 5, "carbs_g": 20, "fat_g": 3},
+    )
+    assert private_response.status_code == 201
+    response = await client.get(
+        "/api/foods?search=quinoa", headers={"Authorization": f"Bearer {token_b}"}
+    )
+    assert response.status_code == 200
+    names = {food["name"] for food in response.json()}
+    assert names == {"Global quinoa"}
+
+
+@pytest.mark.asyncio
+async def test_mcp_lists_tools_and_scopes_entries(client: AsyncClient) -> None:
+    _, token_a = await create_identity("mcp-a@example.com")
+    _, token_b = await create_identity("mcp-b@example.com")
+    async with app.router.lifespan_context(app):
+        initialize = await client.post(
+            "/mcp",
+            headers={
+                "Authorization": f"Bearer {token_a}",
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/event-stream",
+            },
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "pytest", "version": "1.0"},
+                },
+            },
+        )
+        assert initialize.status_code == 200
+        headers = {
+            "Authorization": f"Bearer {token_a}",
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+        }
+        listed = await client.post(
+            "/mcp",
+            headers=headers,
+            json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+        )
+        assert listed.status_code == 200
+        tool_names = {tool["name"] for tool in listed.json()["result"]["tools"]}
+        assert tool_names == {
+            "log_food_entry",
+            "list_entries",
+            "delete_entry",
+            "search_foods",
+            "create_food",
+            "set_daily_goal",
+            "get_daily_progress",
+            "get_range_summary",
+        }
+        called = await client.post(
+            "/mcp",
+            headers=headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {
+                    "name": "log_food_entry",
+                    "arguments": {
+                        "logged_at": "2025-01-02T12:00:00Z",
+                        "meal": "lunch",
+                        "kcal": 450,
+                        "protein_g": 30,
+                        "carbs_g": 40,
+                        "fat_g": 10,
+                    },
+                },
+            },
+        )
+        assert called.status_code == 200
+        result_text = called.json()["result"]["content"][0]["text"]
+        assert '"kcal": 450.0' in result_text
+        goal_call = await client.post(
+            "/mcp",
+            headers=headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "tools/call",
+                "params": {
+                    "name": "set_daily_goal",
+                    "arguments": {
+                        "effective_from": "2025-01-02",
+                        "kcal": 2000,
+                        "protein_g": 100,
+                        "carbs_g": 200,
+                        "fat_g": 60,
+                    },
+                },
+            },
+        )
+        assert goal_call.status_code == 200
+        assert '"effective_from": "2025-01-02"' in goal_call.json()["result"]["content"][0]["text"]
+        progress_call = await client.post(
+            "/mcp",
+            headers=headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "tools/call",
+                "params": {
+                    "name": "get_daily_progress",
+                    "arguments": {"date": "2025-01-02"},
+                },
+            },
+        )
+        assert progress_call.status_code == 200
+        progress_text = progress_call.json()["result"]["content"][0]["text"]
+        assert '"kcal": 450.0' in progress_text
+        assert '"kcal": 2000.0' in progress_text
+        assert '"kcal": 1550.0' in progress_text
+        assert '"fiber_g": 0.0' in progress_text
+        foreign = await client.post(
+            "/mcp",
+            headers={
+                **headers,
+                "Authorization": f"Bearer {token_b}",
+            },
+            json={
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": {
+                    "name": "list_entries",
+                    "arguments": {"date": "2025-01-02"},
+                },
+            },
+        )
+        assert foreign.status_code == 200
+        assert foreign.json()["result"]["content"][0]["text"] == "[]"
+
+
+@pytest.mark.asyncio
+async def test_mcp_requires_bearer_token(client: AsyncClient) -> None:
+    response = await client.post(
+        "/mcp",
+        json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+    )
+    assert response.status_code == 401
+    invalid = await client.post(
+        "/mcp",
+        headers={"Authorization": "Bearer invalid"},
+        json={"jsonrpc": "2.0", "id": 2, "method": "initialize", "params": {}},
+    )
+    assert invalid.status_code == 401

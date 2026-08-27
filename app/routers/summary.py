@@ -49,7 +49,7 @@ def progress(consumed: Totals, goal: Totals | None) -> Progress:
         protein_g=round(goal.protein_g - consumed.protein_g, 2),
         carbs_g=round(goal.carbs_g - consumed.carbs_g, 2),
         fat_g=round(goal.fat_g - consumed.fat_g, 2),
-        fiber_g=round(goal.fiber_g - consumed.fiber_g, 2),
+        fiber_g=round(goal.fiber_g - consumed.fiber_g, 2) if goal.fiber_g else 0,
     )
     percent = Totals(
         kcal=round(consumed.kcal / goal.kcal * 100, 1) if goal.kcal else 0,
@@ -61,16 +61,8 @@ def progress(consumed: Totals, goal: Totals | None) -> Progress:
     return Progress(consumed=consumed, goal=goal, remaining=remaining, percent=percent)
 
 
-async def build_daily_summary(day: date, user: User, session: AsyncSession) -> DailySummary:
-    start, end = day_bounds(day, user.timezone)
-    entries_result = await session.execute(
-        select(Entry).where(
-            Entry.user_id == user.id, Entry.logged_at >= start, Entry.logged_at <= end
-        )
-    )
-    entries = list(entries_result.scalars())
-    goals_result = await session.execute(select(Goal).where(Goal.user_id == user.id))
-    goal = effective_goal(goals_result.scalars(), day)
+def make_daily_summary(day: date, entries: list[Entry], goals: list[Goal]) -> DailySummary:
+    goal = effective_goal(goals, day)
     consumed = totals(entries)
     consumed_schema = totals_schema(consumed)
     by_meal: dict[str, Totals] = {}
@@ -88,6 +80,18 @@ async def build_daily_summary(day: date, user: User, session: AsyncSession) -> D
         remaining=result.remaining,
         percent=result.percent,
     )
+
+
+async def build_daily_summary(day: date, user: User, session: AsyncSession) -> DailySummary:
+    start, end = day_bounds(day, user.timezone)
+    entries_result = await session.execute(
+        select(Entry).where(
+            Entry.user_id == user.id, Entry.logged_at >= start, Entry.logged_at <= end
+        )
+    )
+    entries = list(entries_result.scalars())
+    goals_result = await session.execute(select(Goal).where(Goal.user_id == user.id))
+    return make_daily_summary(day, entries, list(goals_result.scalars()))
 
 
 @router.get("/daily", response_model=DailySummary)
@@ -109,8 +113,31 @@ async def range_summary(
 ) -> RangeSummary:
     if date_to < date_from:
         date_from, date_to = date_to, date_from
+    start, _ = day_bounds(date_from, user.timezone)
+    _, end = day_bounds(date_to, user.timezone)
+    entries_result = await session.execute(
+        select(Entry).where(
+            Entry.user_id == user.id,
+            Entry.logged_at >= start,
+            Entry.logged_at <= end,
+        )
+    )
+    goals_result = await session.execute(
+        select(Goal).where(Goal.user_id == user.id, Goal.effective_from <= date_to)
+    )
+    entries = list(entries_result.scalars())
+    goals = list(goals_result.scalars())
+    local_zone = ZoneInfo(user.timezone)
+    entries_by_day: dict[date, list[Entry]] = {}
+    for entry in entries:
+        entry_day = entry.logged_at.astimezone(local_zone).date()
+        entries_by_day.setdefault(entry_day, []).append(entry)
     days = [
-        await build_daily_summary(date_from + timedelta(days=offset), user, session)
+        make_daily_summary(
+            date_from + timedelta(days=offset),
+            entries_by_day.get(date_from + timedelta(days=offset), []),
+            goals,
+        )
         for offset in range((date_to - date_from).days + 1)
     ]
     count = len(days)

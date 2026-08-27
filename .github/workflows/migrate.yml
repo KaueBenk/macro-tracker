@@ -1,0 +1,29 @@
+name: Migrate production database
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5.4.1
+        with:
+          version: "0.6.5"
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Sync dependencies
+        run: uv sync --no-dev
+      - name: Upgrade database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Skipping migration: DATABASE_URL secret not configured."
+            exit 0
+          fi
+          uv run alembic upgrade head
