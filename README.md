@@ -66,7 +66,8 @@ uv run alembic check
    - `APP_ENV`: `production`
    - `DEFAULT_TIMEZONE`: por exemplo `America/Sao_Paulo`
    - `LOG_LEVEL`: `INFO`
-   - `SERVERLESS`: `true`
+   - `SERVERLESS`: opcional; `true` é detectado automaticamente quando a Vercel define
+     `VERCEL`, mas pode ser configurado explicitamente
 3. Clique em **Deploy**. Pushes na branch conectada geram novos deploys automaticamente.
 4. Para executar as migrações no banco de produção, abra o GitHub em
    **Settings > Secrets and variables > Actions > New repository secret**, crie o segredo

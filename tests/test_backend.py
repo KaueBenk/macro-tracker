@@ -4,6 +4,7 @@ from decimal import Decimal
 import pytest
 from httpx import AsyncClient
 
+from app.config import Settings
 from app.db import SessionLocal
 from app.main import app
 from app.models import Food, Goal
@@ -217,14 +218,16 @@ async def test_global_food_search_is_visible_but_private_food_is_scoped(
 async def test_mcp_lists_tools_and_scopes_entries(client: AsyncClient) -> None:
     _, token_a = await create_identity("mcp-a@example.com")
     _, token_b = await create_identity("mcp-b@example.com")
+    headers = {
+        "Authorization": f"Bearer {token_a}",
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+    }
     async with app.router.lifespan_context(app):
+        assert (await client.get("/nope")).status_code == 404
         initialize = await client.post(
             "/mcp",
-            headers={
-                "Authorization": f"Bearer {token_a}",
-                "Content-Type": "application/json",
-                "Accept": "application/json, text/event-stream",
-            },
+            headers=headers,
             json={
                 "jsonrpc": "2.0",
                 "id": 1,
@@ -237,11 +240,24 @@ async def test_mcp_lists_tools_and_scopes_entries(client: AsyncClient) -> None:
             },
         )
         assert initialize.status_code == 200
-        headers = {
-            "Authorization": f"Bearer {token_a}",
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/event-stream",
-        }
+        trailing_initialize = await client.post(
+            "/mcp/",
+            headers={
+                **headers,
+                "Authorization": f"Bearer {token_a}",
+            },
+            json={
+                "jsonrpc": "2.0",
+                "id": 10,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "pytest", "version": "1.0"},
+                },
+            },
+        )
+        assert trailing_initialize.status_code == 200
         listed = await client.post(
             "/mcp",
             headers=headers,
@@ -355,3 +371,11 @@ async def test_mcp_requires_bearer_token(client: AsyncClient) -> None:
         json={"jsonrpc": "2.0", "id": 2, "method": "initialize", "params": {}},
     )
     assert invalid.status_code == 401
+
+
+def test_serverless_defaults_to_vercel(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.delenv("SERVERLESS", raising=False)
+    assert Settings().serverless is True
+    monkeypatch.setenv("SERVERLESS", "false")
+    assert Settings().serverless is False

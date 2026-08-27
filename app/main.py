@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from starlette.routing import Route
 
 from app.mcp.server import create_mcp_app
 from app.routers import entries, foods, goals, summary
@@ -25,7 +26,8 @@ def create_app() -> FastAPI:
     application.include_router(entries.router, prefix="/api")
     application.include_router(goals.router, prefix="/api")
     application.include_router(summary.router, prefix="/api")
-    application.mount("/", mcp_app)
+    application.router.routes.append(Route("/mcp", mcp_app))
+    application.router.routes.append(Route("/mcp/", mcp_app))
     return application
 
 

@@ -1,4 +1,5 @@
 from contextvars import ContextVar
+from typing import cast
 from uuid import UUID
 
 from starlette.responses import JSONResponse
@@ -49,3 +50,15 @@ class BearerAuthMiddleware:
             await self.app(scope, receive, send)
         finally:
             current_user_id.reset(token)
+
+
+class MCPPathAdapter:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and scope["path"] in {"/mcp", "/mcp/", ""}:
+            scope = cast(Scope, dict(scope))
+            scope["path"] = "/"
+            scope["raw_path"] = b"/"
+        await self.app(scope, receive, send)

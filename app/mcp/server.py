@@ -8,6 +8,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from mcp.server.mcpserver import MCPServer
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +16,7 @@ from starlette.applications import Starlette
 from starlette.types import ASGIApp
 
 from app.db import SessionLocal
-from app.mcp.auth import current_user_id
+from app.mcp.auth import BearerAuthMiddleware, MCPPathAdapter, current_user_id
 from app.models import Entry, Food, Goal, Meal, User
 from app.routers.summary import make_daily_summary
 from app.schemas import EntryRead, FoodRead, GoalRead
@@ -448,12 +449,12 @@ async def get_range_summary(
 
 
 def create_mcp_app() -> tuple[ASGIApp, Starlette]:
-    from app.mcp.auth import BearerAuthMiddleware
-
     transport_app = server.streamable_http_app(
-        streamable_http_path="/mcp",
+        streamable_http_path="/",
         stateless_http=True,
         json_response=True,
-        host="0.0.0.0",
+        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
     )
-    return BearerAuthMiddleware(transport_app), transport_app
+    transport_app.router.redirect_slashes = False
+    protected_app = BearerAuthMiddleware(MCPPathAdapter(transport_app))
+    return protected_app, transport_app
