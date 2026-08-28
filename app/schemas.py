@@ -146,3 +146,15 @@ class DailySummary(Progress):
 class RangeSummary(BaseModel):
     days: list[DailySummary]
     averages: Totals
+
+
+class UserRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    email: str
+    timezone: str
+
+
+class UserUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    timezone: str

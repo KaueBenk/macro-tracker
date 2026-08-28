@@ -24,7 +24,7 @@ def upgrade() -> None:
     op.create_table(
         "oauth_clients",
         sa.Column("client_id", sa.String(length=255), nullable=False),
-        sa.Column("client_secret_hash", sa.String(length=64), nullable=True),
+        sa.Column("client_secret", sa.Text(), nullable=True),
         sa.Column("client_metadata", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("client_id"),
@@ -68,6 +68,8 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("client_id", sa.String(length=255), nullable=False),
         sa.Column("state", sa.Text(), nullable=True),
+        sa.Column("login_state", sa.Text(), nullable=True),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("scopes", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("code_challenge", sa.String(length=255), nullable=False),
         sa.Column("redirect_uri", sa.Text(), nullable=False),
@@ -75,11 +77,19 @@ def upgrade() -> None:
         sa.Column("resource", sa.Text(), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("login_state"),
     )
+    op.create_index("ix_oauth_pending_auth_user_id", "oauth_pending_auth", ["user_id"], unique=False)
 
 
 def downgrade() -> None:
+    op.drop_index(
+        "ix_oauth_pending_auth_user_id",
+        table_name="oauth_pending_auth",
+        if_exists=True,
+    )
     op.drop_table("oauth_pending_auth")
     op.drop_index("ix_oauth_tokens_client_id", table_name="oauth_tokens")
     op.drop_index("ix_oauth_tokens_user_id", table_name="oauth_tokens")

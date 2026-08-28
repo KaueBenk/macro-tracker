@@ -143,7 +143,8 @@ class OAuthClient(Base):
     __tablename__ = "oauth_clients"
 
     client_id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    client_secret_hash: Mapped[str | None] = mapped_column(String(64))
+    # The MCP SDK compares client secrets in cleartext during client authentication.
+    client_secret: Mapped[str | None] = mapped_column(Text)
     client_metadata: Mapped[dict[str, object]] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
@@ -197,6 +198,10 @@ class OAuthPendingAuth(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id: Mapped[str] = mapped_column(String(255))
     state: Mapped[str | None] = mapped_column(Text)
+    login_state: Mapped[str | None] = mapped_column(Text, unique=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     scopes: Mapped[list[str]] = mapped_column(JSONB)
     code_challenge: Mapped[str] = mapped_column(String(255))
     redirect_uri: Mapped[str] = mapped_column(Text)

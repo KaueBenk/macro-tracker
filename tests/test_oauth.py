@@ -5,11 +5,12 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from starlette.applications import Starlette
 
 from app.config import Settings
 from app.db import SessionLocal
-from app.models import OAuthPendingAuth
+from app.models import OAuthClient, OAuthPendingAuth
 from app.oauth.identity import DevIdentityProvider, create_login_route
 from app.oauth.provider import DbOAuthProvider
 from tests.conftest import create_identity
@@ -206,6 +207,55 @@ async def test_mcp_missing_token_advertises_resource_metadata(client: AsyncClien
         "resource_metadata="
         '"http://localhost:8000/.well-known/oauth-protected-resource/mcp"'
     )
+
+
+@pytest.mark.asyncio
+async def test_confidential_client_secret_is_stored_separately_and_authenticates(
+    client: AsyncClient,
+) -> None:
+    await create_identity("confidential@example.com")
+    registration = await client.post(
+        "/register",
+        json={"redirect_uris": ["https://client.example/callback"]},
+    )
+    assert registration.status_code == 201
+    info = registration.json()
+    client_id = info["client_id"]
+    client_secret = info["client_secret"]
+    async with SessionLocal() as session:
+        record = await session.scalar(select(OAuthClient).where(OAuthClient.client_id == client_id))
+        assert record is not None
+        assert record.client_secret == client_secret
+        assert "client_secret" not in record.client_metadata
+
+    verifier = "confidential-verifier"
+    authorization = await client.get(
+        "/authorize",
+        params={
+            "client_id": client_id,
+            "redirect_uri": "https://client.example/callback",
+            "response_type": "code",
+            "code_challenge": _challenge(verifier),
+            "code_challenge_method": "S256",
+        },
+    )
+    login = await client.get(
+        _path(authorization.headers["location"]) + "&email=confidential@example.com",
+        follow_redirects=False,
+    )
+    code = parse_qs(urlparse(login.headers["location"]).query)["code"][0]
+    token = await client.post(
+        "/token",
+        data={
+            "grant_type": "authorization_code",
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "code": code,
+            "redirect_uri": "https://client.example/callback",
+            "code_verifier": verifier,
+        },
+    )
+    assert token.status_code == 200
 
 
 @pytest.mark.asyncio

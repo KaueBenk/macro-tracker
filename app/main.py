@@ -10,8 +10,13 @@ from starlette.routing import Route
 
 from app.config import get_auth_settings, get_settings
 from app.mcp.server import create_mcp_app
-from app.oauth.identity import DevIdentityProvider, create_login_route
-from app.routers import entries, foods, goals, summary
+from app.oauth.google import GoogleIdentityProvider, create_google_callback_route
+from app.oauth.identity import (
+    DevIdentityProvider,
+    create_consent_routes,
+    create_login_route,
+)
+from app.routers import account, entries, foods, goals, summary
 
 
 def create_app() -> FastAPI:
@@ -36,6 +41,7 @@ def create_app() -> FastAPI:
     application.include_router(entries.router, prefix="/api")
     application.include_router(goals.router, prefix="/api")
     application.include_router(summary.router, prefix="/api")
+    application.include_router(account.router, prefix="/api")
     application.router.routes.extend(
         create_auth_routes(
             provider=oauth_provider,
@@ -53,8 +59,19 @@ def create_app() -> FastAPI:
             else None,
         )
     )
+    identity_provider = (
+        GoogleIdentityProvider(oauth_provider, settings)
+        if settings.app_env.lower() == "production"
+        or (settings.google_client_id and settings.google_client_secret)
+        else DevIdentityProvider(settings)
+    )
     application.router.routes.append(
-        create_login_route(oauth_provider, DevIdentityProvider(settings), settings)
+        create_login_route(oauth_provider, identity_provider, settings)
+    )
+    application.router.routes.extend(create_consent_routes(oauth_provider))
+    google_provider = GoogleIdentityProvider(oauth_provider, settings)
+    application.router.routes.append(
+        create_google_callback_route(google_provider, oauth_provider, settings)
     )
     application.router.routes.append(Route("/mcp", mcp_app))
     application.router.routes.append(Route("/mcp/", mcp_app))

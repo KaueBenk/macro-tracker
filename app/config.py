@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     default_timezone: str = "America/Sao_Paulo"
     log_level: str = "INFO"
     public_base_url: str = "http://localhost:8000"
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    allowed_emails: str = ""
+    oauth_require_consent: bool = True
     serverless: bool = Field(default_factory=_default_serverless)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -67,3 +71,7 @@ def get_auth_settings() -> MCPAuthSettings:
         revocation_options=RevocationOptions(enabled=True),
         required_scopes=None,
     )
+
+
+def get_allowed_emails(settings: Settings) -> set[str]:
+    return {email.strip().lower() for email in settings.allowed_emails.split(",") if email.strip()}

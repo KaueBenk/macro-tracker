@@ -40,17 +40,19 @@ class DbOAuthProvider(
             record = await session.get(OAuthClient, client_id)
             if record is None:
                 return None
-            return OAuthClientInformationFull.model_validate(record.client_metadata)
+            return OAuthClientInformationFull.model_validate(
+                {**record.client_metadata, "client_secret": record.client_secret}
+            )
 
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
         client_metadata = cast(dict[str, object], client_info.model_dump(mode="json"))
         client_secret = client_info.client_secret
-        client_secret_hash = hash_token(client_secret) if client_secret is not None else None
+        client_metadata.pop("client_secret", None)
         async with SessionLocal() as session:
             session.add(
                 OAuthClient(
                     client_id=client_info.client_id,
-                    client_secret_hash=client_secret_hash,
+                    client_secret=client_secret,
                     client_metadata=client_metadata,
                 )
             )
@@ -63,6 +65,8 @@ class DbOAuthProvider(
             pending = OAuthPendingAuth(
                 client_id=client.client_id,
                 state=params.state,
+                login_state=None,
+                user_id=None,
                 scopes=params.scopes or (client.scope.split() if client.scope else []),
                 code_challenge=params.code_challenge,
                 redirect_uri=str(params.redirect_uri),
@@ -75,6 +79,55 @@ class DbOAuthProvider(
             pending_id = pending.id
             await session.commit()
         return f"{get_settings().public_base_url}/oauth/login?pending={pending_id}"
+
+    async def set_login_state(self, pending_id: UUID, login_state: str) -> bool:
+        async with SessionLocal() as session:
+            pending = await session.get(OAuthPendingAuth, pending_id, with_for_update=True)
+            if pending is None or pending.expires_at <= datetime.now(UTC):
+                return False
+            pending.login_state = login_state
+            await session.commit()
+            return True
+
+    async def get_pending_by_login_state(self, login_state: str) -> OAuthPendingAuth | None:
+        async with SessionLocal() as session:
+            result = await session.execute(
+                select(OAuthPendingAuth).where(OAuthPendingAuth.login_state == login_state)
+            )
+            return result.scalar_one_or_none()
+
+    async def set_pending_user(self, pending_id: UUID, user_id: UUID) -> bool:
+        async with SessionLocal() as session:
+            pending = await session.get(OAuthPendingAuth, pending_id, with_for_update=True)
+            if pending is None or pending.expires_at <= datetime.now(UTC):
+                return False
+            pending.user_id = user_id
+            pending.login_state = None
+            await session.commit()
+            return True
+
+    async def get_pending(self, pending_id: UUID) -> OAuthPendingAuth | None:
+        async with SessionLocal() as session:
+            result = await session.execute(
+                select(OAuthPendingAuth).where(OAuthPendingAuth.id == pending_id)
+            )
+            return result.scalar_one_or_none()
+
+    async def cancel_pending_authorization(self, pending_id: UUID) -> str | None:
+        async with SessionLocal() as session:
+            pending = await session.scalar(
+                select(OAuthPendingAuth).where(OAuthPendingAuth.id == pending_id).with_for_update()
+            )
+            if pending is None or pending.expires_at <= datetime.now(UTC):
+                return None
+            redirect_uri = construct_redirect_uri(
+                pending.redirect_uri,
+                error="access_denied",
+                state=pending.state,
+            )
+            await session.delete(pending)
+            await session.commit()
+            return redirect_uri
 
     async def load_authorization_code(
         self, client: OAuthClientInformationFull, authorization_code: str

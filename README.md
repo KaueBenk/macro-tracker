@@ -26,6 +26,10 @@ O `.env.example` usa:
 | `PUBLIC_BASE_URL` | URL pública usada pelo OAuth e pelos metadados MCP | `http://localhost:8000` |
 | `SERVERLESS` | Habilita `NullPool` e configurações do pgbouncer | `false` |
 | `DEV_LOGIN_EMAIL` | E-mail usado pelo login OAuth de desenvolvimento | `voce@example.com` |
+| `GOOGLE_CLIENT_ID` | Client ID OAuth do Google (produção) | — |
+| `GOOGLE_CLIENT_SECRET` | Client secret OAuth do Google (produção) | — |
+| `ALLOWED_EMAILS` | E-mails permitidos para criar novas contas, separados por vírgula | — |
+| `OAUTH_REQUIRE_CONSENT` | Exibe a tela de consentimento após o login | `true` |
 
 Crie um usuário e um token (o token é impresso uma única vez):
 
@@ -104,8 +108,28 @@ compatibilidade com clientes Google e não concede permissões adicionais.
 
 No ambiente de desenvolvimento, `/oauth/login?pending=<id>&email=<email>` resolve um
 usuário existente pelo e-mail (ou por `DEV_LOGIN_EMAIL`) e conclui a autorização. Esse
-provedor é deliberadamente bloqueado em produção com HTTP 503. A integração de identidade
-Google será adicionada posteriormente pela mesma interface `IdentityProvider`.
+provedor é deliberadamente bloqueado em produção com HTTP 503. Quando
+`GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` estão configurados, o login usa Google OIDC:
+o callback troca o código no Google e consulta o endpoint HTTPS `userinfo`, exigindo
+`email_verified=true` sem validar JWT localmente. Usuários existentes são vinculados pelo
+`google_sub` ou pelo e-mail, independentemente de `ALLOWED_EMAILS`; somente novas contas
+precisam estar na allowlist. Em produção sem as credenciais Google, o login responde HTTP 503.
+
+Para configurar o Google Cloud:
+
+1. Em **Google Cloud Console > APIs & Services > Credentials**, crie um OAuth client do
+   tipo **Web application**.
+2. Adicione como redirect URI:
+   `https://macro-tracker-alpha-six.vercel.app/oauth/google/callback`
+3. Configure `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` na Vercel e `ALLOWED_EMAILS`
+   com os e-mails autorizados a criar contas. Use os escopos `openid email`.
+4. Mantenha `OAUTH_REQUIRE_CONSENT=true` para exibir a tela de autorização do Macro Tracker;
+   desligue-o apenas durante depuração.
+
+Após o login Google, a tela de consentimento mostra o nome do cliente MCP e descreve o
+acesso a alimentos, registros, metas e resumos. **Autorizar** emite o código OAuth; **Cancelar**
+retorna `access_denied` ao redirect URI original. A conta autenticada também pode ser consultada
+e atualizada em `GET /api/me` e `PATCH /api/me` (este último aceita somente `timezone` IANA).
 
 ## MCP
 

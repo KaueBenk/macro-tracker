@@ -30,7 +30,7 @@ app/
   services/
     nutrition.py     # cálculo de macros por entrada e agregações diárias/por período
   routers/
-    foods.py entries.py goals.py summary.py
+    foods.py entries.py goals.py summary.py account.py
   mcp/
     server.py        # MCPServer + tools
     auth.py          # middleware ASGI de bearer token + contextvar do usuário
@@ -46,7 +46,8 @@ README.md
 
 Todas as tabelas com `id UUID PK default uuid4`, `created_at`/`updated_at timestamptz`.
 
-- `users`: `email` (unique), `timezone` (text, default `America/Sao_Paulo`)
+- `users`: `email` (unique), `timezone` (text, default `America/Sao_Paulo`), `google_sub`
+  (unique, nullable)
 - `api_tokens`: `user_id FK`, `name`, `token_hash` (sha256 hex, unique), `last_used_at`,
   `revoked_at` nullable
 - `foods`: `user_id FK nullable` (null = alimento global), `name`, `brand` nullable,
@@ -101,7 +102,13 @@ Os escopos aceitos são `mcp` e `ACCESS_VIEW_MANAGE_MCP_CONTENT`. O segundo é u
 de compatibilidade de clientes Google e não concede nenhuma permissão adicional; não há
 escopo obrigatório no resource server. Em desenvolvimento, `DevIdentityProvider` resolve
 um usuário existente por e-mail (`email` na rota de login ou `DEV_LOGIN_EMAIL`). Em
-produção essa seam responde HTTP 503 até que o provedor de identidade Google seja integrado.
+produção, o login usa Google OIDC quando `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` estão
+configurados. O callback usa o endpoint HTTPS `userinfo`, exige `email_verified=true` e não
+valida assinatura de JWT localmente. Contas existentes são vinculadas por `google_sub` ou
+e-mail; novas contas exigem `ALLOWED_EMAILS` e recebem `DEFAULT_TIMEZONE`. Sem configuração
+Google, o login responde HTTP 503. Após autenticar, `OAUTH_REQUIRE_CONSENT` controla a tela
+de consentimento server-rendered em português; a pending guarda o `user_id` autenticado até
+a emissão do código.
 
 `python -m app.cli create-user --email ... [--timezone ...]` e
 `python -m app.cli create-token --email ... --name ...` (imprime o token em claro uma única vez).
@@ -119,6 +126,8 @@ produção essa seam responde HTTP 503 até que o provedor de identidade Google 
 - `GET /api/summary/daily?date=` → `{date, totals, goal, remaining, percent, entries_count,
   by_meal}`
 - `GET /api/summary/range?from=&to=` → lista de dias + médias do período
+- `GET /api/me` → id, e-mail e timezone do usuário autenticado
+- `PATCH /api/me` → atualiza somente `timezone` (IANA/`zoneinfo`)
 
 404 quando o recurso é de outro usuário (nunca 403 vazando existência).
 
@@ -154,7 +163,8 @@ Datas aceitas como `YYYY-MM-DD` e `logged_at` ISO-8601; ausente = agora no tz do
   (`-pooler`); o `DATABASE_URL` pode ser colado no formato original fornecido pelo Neon,
   pois scheme e parâmetros SSL são normalizados automaticamente. `statement_cache_size=0`
   no asyncpg é usado por causa do pgbouncer.
-- Env vars na Vercel: `DATABASE_URL`, `APP_ENV`, `DEFAULT_TIMEZONE` e `LOG_LEVEL`.
+- Env vars na Vercel: `DATABASE_URL`, `APP_ENV`, `DEFAULT_TIMEZONE`, `LOG_LEVEL`,
+  `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ALLOWED_EMAILS` e `OAUTH_REQUIRE_CONSENT`.
   `SERVERLESS` é detectado automaticamente quando a Vercel define `VERCEL`.
 - Para habilitar deploy automático via Git, o proprietário deve adicionar a conexão do GitHub
   em **Vercel > Account Settings > Login Connections** antes de executar `vercel git connect`.
@@ -177,5 +187,4 @@ Datas aceitas como `YYYY-MM-DD` e `logged_at` ISO-8601; ausente = agora no tz do
 
 ## Fora de escopo nesta etapa
 
-GUI web (etapa 2), busca em base pública de alimentos (ex. OpenFoodFacts), login Google e
-signup self-service.
+GUI web (etapa 2) e busca em base pública de alimentos (ex. OpenFoodFacts).
