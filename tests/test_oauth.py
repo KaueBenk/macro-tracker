@@ -48,6 +48,37 @@ async def test_oauth_metadata_and_protected_resource(client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
+async def test_dcr_defaults_allow_compatibility_scope_at_authorize(
+    client: AsyncClient,
+) -> None:
+    await create_identity("compatibility@example.com")
+    registration = await client.post(
+        "/register",
+        json={"redirect_uris": ["https://client.example/callback"]},
+    )
+    assert registration.status_code == 201
+    client_info = registration.json()
+    assert client_info["scope"] == "mcp ACCESS_VIEW_MANAGE_MCP_CONTENT"
+
+    authorization = await client.get(
+        "/authorize",
+        params={
+            "client_id": client_info["client_id"],
+            "redirect_uri": "https://client.example/callback",
+            "response_type": "code",
+            "code_challenge": _challenge("compatibility-verifier"),
+            "code_challenge_method": "S256",
+            "scope": "ACCESS_VIEW_MANAGE_MCP_CONTENT",
+        },
+        follow_redirects=False,
+    )
+    assert authorization.status_code == 302
+    location = urlparse(authorization.headers["location"])
+    assert location.path == "/oauth/login"
+    assert "error" not in parse_qs(location.query)
+
+
+@pytest.mark.asyncio
 async def test_oauth_authorization_code_pkce_refresh_and_revoke(client: AsyncClient) -> None:
     user, _ = await create_identity("oauth@example.com")
     registration = await client.post(

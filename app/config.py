@@ -66,7 +66,7 @@ def get_auth_settings() -> MCPAuthSettings:
         client_registration_options=ClientRegistrationOptions(
             enabled=True,
             valid_scopes=["mcp", "ACCESS_VIEW_MANAGE_MCP_CONTENT"],
-            default_scopes=["mcp"],
+            default_scopes=["mcp", "ACCESS_VIEW_MANAGE_MCP_CONTENT"],
         ),
         revocation_options=RevocationOptions(enabled=True),
         required_scopes=None,
