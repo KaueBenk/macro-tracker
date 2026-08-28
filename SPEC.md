@@ -12,7 +12,7 @@ servidor MCP remoto, (b) API REST (que a GUI web da etapa 2 vai usar).
 - Lint/format: `ruff` (check + format), tipos: `mypy`
 - Testes: `pytest`, `pytest-asyncio`, `httpx.ASGITransport` contra Postgres local
 - Banco: Postgres (Neon free tier em prod)
-- Deploy: Vercel (Python runtime, free tier pessoal) — `api/index.py` expõe a app ASGI
+- Deploy: Vercel (Python runtime, free tier pessoal) — o preset FastAPI serve `app/main.py:app`
 - CI/CD: GitHub Actions (lint, mypy, migrations, testes) + deploy automático da Vercel via Git
 
 ## Layout
@@ -35,12 +35,10 @@ app/
     server.py        # MCPServer + tools
     auth.py          # middleware ASGI de bearer token + contextvar do usuário
 alembic/ (env.py, versions/)
-api/index.py         # entrypoint Vercel (`app = create_app()`)
 tests/
-vercel.json
 .github/workflows/ci.yml
 .github/workflows/migrate.yml
-pyproject.toml, uv.lock, requirements.txt (exportado para a Vercel)
+pyproject.toml, uv.lock
 README.md
 ```
 
@@ -131,14 +129,21 @@ Datas aceitas como `YYYY-MM-DD` e `logged_at` ISO-8601; ausente = agora no tz do
 
 ## Deploy / infra
 
-- `vercel.json`: rewrite de todas as rotas para `api/index.py`; runtime Python 3.12.
-- `requirements.txt` gerado por `uv export --no-dev --no-hashes` (a Vercel não lê `uv.lock`);
-  CI falha se estiver fora de sincronia.
+- A Vercel detecta o preset FastAPI automaticamente e serve `app/main.py:app`; não há
+  `vercel.json`. A versão do Python vem do `pyproject.toml` e as dependências do `uv.lock`.
 - Engine com `poolclass=NullPool` (serverless) e connection string **pooled** do Neon
-  (`-pooler`), `?sslmode=require`; `statement_cache_size=0` no asyncpg por causa do pgbouncer.
-- Env vars: `DATABASE_URL`, `APP_ENV`, `DEFAULT_TIMEZONE`, `LOG_LEVEL`.
-- Migrations em prod: workflow `migrate.yml` (push em `main`) roda `alembic upgrade head` com o
-  secret `DATABASE_URL`; faz skip com aviso se o secret não existir (repo recém-criado).
+  (`-pooler`); o `DATABASE_URL` pode ser colado no formato original fornecido pelo Neon,
+  pois scheme e parâmetros SSL são normalizados automaticamente. `statement_cache_size=0`
+  no asyncpg é usado por causa do pgbouncer.
+- Env vars na Vercel: `DATABASE_URL`, `APP_ENV`, `DEFAULT_TIMEZONE` e `LOG_LEVEL`.
+  `SERVERLESS` é detectado automaticamente quando a Vercel define `VERCEL`.
+- Para habilitar deploy automático via Git, o proprietário deve adicionar a conexão do GitHub
+  em **Vercel > Account Settings > Login Connections** antes de executar `vercel git connect`.
+- Migrations em prod: primeiro aplique localmente com
+  `DATABASE_URL=<NEON_POOLED_DATABASE_URL> uv run alembic upgrade head`; depois o proprietário
+  deve criar o secret `DATABASE_URL` em **GitHub Settings > Secrets and variables > Actions**
+  para que o workflow `migrate.yml` (push em `main`) execute `alembic upgrade head`. Sem o
+  secret, o workflow faz skip com aviso e sucesso.
 
 ## CI
 
@@ -150,7 +155,6 @@ Datas aceitas como `YYYY-MM-DD` e `logged_at` ISO-8601; ausente = agora no tz do
 5. `pytest -q` (mínimo: cálculo de macros, auth 401/escopo por usuário, CRUD de entries/foods,
    meta vigente por data, summary diário com e sem meta, handshake MCP + ao menos duas tools
    via HTTP)
-6. verificação de `requirements.txt` sincronizado
 
 ## Fora de escopo nesta etapa
 

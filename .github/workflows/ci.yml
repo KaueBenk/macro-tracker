@@ -48,7 +48,3 @@ jobs:
           uv run alembic check
       - name: Tests
         run: uv run pytest -q
-      - name: Check requirements.txt is synchronized
-        run: |
-          uv export --no-dev --no-hashes --format requirements-txt > /tmp/requirements.txt
-          diff -u requirements.txt /tmp/requirements.txt

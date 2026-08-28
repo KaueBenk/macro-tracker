@@ -61,21 +61,30 @@ uv run alembic check
    escolha a região desejada e copie a conexão **pooled** (`-pooler`) exatamente como
    a Neon fornecer. O scheme e os parâmetros SSL são normalizados automaticamente.
 2. No dashboard da Vercel, selecione **Add New... > Project**, importe este repositório
-   do GitHub e mantenha o framework como **Other**. Em **Settings > Environment Variables**,
-   adicione:
+   do GitHub e deixe a Vercel detectar o preset **FastAPI** automaticamente. A Vercel
+   serve `app/main.py:app`, usa o Python definido no `pyproject.toml` e instala as
+   dependências a partir do `uv.lock`; não é necessário `vercel.json`.
+   Em **Settings > Environment Variables**, adicione:
    - `DATABASE_URL`: URL pooled do Neon, que pode ser colada no formato original fornecido
      pela Neon; scheme e parâmetros SSL são normalizados automaticamente
    - `APP_ENV`: `production`
    - `DEFAULT_TIMEZONE`: por exemplo `America/Sao_Paulo`
    - `LOG_LEVEL`: `INFO`
-   - `SERVERLESS`: opcional; `true` é detectado automaticamente quando a Vercel define
-     `VERCEL`, mas pode ser configurado explicitamente
-3. Clique em **Deploy**. Pushes na branch conectada geram novos deploys automaticamente.
-4. Para executar as migrações no banco de produção, abra o GitHub em
-   **Settings > Secrets and variables > Actions > New repository secret**, crie o segredo
-   `DATABASE_URL` com a mesma URL pooled do Neon e faça push em `main`. O workflow
-   `migrate.yml` executa `alembic upgrade head`; sem o segredo, ele encerra com aviso e
-   sucesso para não deixar a branch vermelha.
+   `SERVERLESS` não precisa ser configurada: é detectada automaticamente quando a Vercel
+   define `VERCEL`.
+3. Clique em **Deploy**. Para habilitar deploys automáticos a cada push, primeiro adicione
+   a conexão do GitHub em **Vercel > Account Settings > Login Connections**. Sem essa conexão,
+   `vercel git connect` falha com a mensagem de que é necessário adicionar uma Login
+   Connection ao GitHub; depois disso, execute `vercel git connect` e selecione o projeto.
+4. Para executar as migrações localmente contra o Neon:
+   ```bash
+   DATABASE_URL=<NEON_POOLED_DATABASE_URL> uv run alembic upgrade head
+   ```
+   A URL pooled do Neon funciona no formato original, graças à normalização automática.
+5. Para o workflow `migrate.yml`, abra o GitHub em **Settings > Secrets and variables >
+   Actions > New repository secret** e crie `DATABASE_URL` com a mesma URL pooled do Neon.
+   Esse passo requer acesso do proprietário do repositório; o `gh` local não configura esse
+   segredo sem autenticação.
 
 ## MCP
 
