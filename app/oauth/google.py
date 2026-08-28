@@ -15,7 +15,7 @@ from starlette.routing import Route
 from app.config import Settings, get_allowed_emails
 from app.db import SessionLocal
 from app.models import OAuthPendingAuth, User
-from app.oauth.identity import IdentityProvider, OAuthLoginStarter, _browser_matches
+from app.oauth.identity import IdentityProvider, OAuthLoginStarter, browser_matches
 from app.oauth.provider import DbOAuthProvider
 
 GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -176,7 +176,7 @@ def create_google_callback_route(
             pending, _ = await identity_provider.resolve_callback(request)
         except GoogleIdentityError as exc:
             return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
-        if not _browser_matches(request, pending):
+        if not browser_matches(request, pending):
             return JSONResponse(
                 {"detail": "Authorization session does not match this browser"},
                 status_code=400,

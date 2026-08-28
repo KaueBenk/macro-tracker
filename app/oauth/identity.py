@@ -131,7 +131,7 @@ def create_consent_routes(provider: DbOAuthProvider) -> list[Route]:
             return JSONResponse(
                 {"detail": "Pending authorization is invalid or expired"}, status_code=400
             )
-        if not _browser_matches(request, pending):
+        if not browser_matches(request, pending):
             return JSONResponse(
                 {"detail": "Authorization session does not match this browser"},
                 status_code=400,
@@ -167,7 +167,7 @@ def create_consent_routes(provider: DbOAuthProvider) -> list[Route]:
     ]
 
 
-def _browser_matches(request: Request, pending: OAuthPendingAuth) -> bool:
+def browser_matches(request: Request, pending: OAuthPendingAuth) -> bool:
     if pending.browser_hash is None:
         return True
     browser_token = request.cookies.get("mt_oauth_browser")
