@@ -14,7 +14,7 @@ from starlette.applications import Starlette
 
 from app.config import Settings, get_auth_settings
 from app.db import SessionLocal
-from app.models import OAuthPendingAuth, User
+from app.models import OAuthAuthCode, OAuthPendingAuth, User
 from app.oauth.google import (
     GOOGLE_TOKEN_URL,
     GOOGLE_USERINFO_URL,
@@ -104,6 +104,15 @@ async def _start_google(client: AsyncClient, client_id: str) -> tuple[str, str]:
     assert authorization.status_code == 302
     login = await client.get(authorization.headers["location"], follow_redirects=False)
     assert login.status_code == 302
+    set_cookie = login.headers["set-cookie"]
+    cookie_name, cookie_value = set_cookie.split(";", 1)[0].split("=", 1)
+    assert cookie_name == "mt_oauth_browser"
+    assert "HttpOnly" in set_cookie
+    assert "Max-Age=600" in set_cookie
+    assert "Path=/" in set_cookie
+    assert "SameSite=lax" in set_cookie
+    assert "Secure" in set_cookie
+    client.cookies.set(cookie_name, cookie_value)
     google_url = urlparse(login.headers["location"])
     return verifier, google_url.query
 
@@ -182,6 +191,8 @@ async def test_google_flow_and_consent() -> None:
         )
         assert token.status_code == 200
         assert len(requests) == 2
+        assert 'mt_oauth_browser="";' in authorized.headers["set-cookie"]
+        assert "Max-Age=0" in authorized.headers["set-cookie"]
 
     async with SessionLocal() as session:
         user = await session.scalar(select(User).where(User.email == "new@example.com"))
@@ -311,6 +322,69 @@ async def test_google_consent_can_be_cancelled() -> None:
         cancelled_query = parse_qs(urlparse(cancelled.headers["location"]).query)
         assert cancelled_query["error"] == ["access_denied"]
         assert cancelled_query["state"] == ["oauth-state"]
+
+
+@pytest.mark.asyncio
+async def test_google_consent_rejects_a_different_browser() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url == httpx.URL(GOOGLE_TOKEN_URL):
+            return httpx.Response(200, json={"access_token": "token"})
+        return httpx.Response(
+            200,
+            json={"sub": "bound-sub", "email": "new@example.com", "email_verified": True},
+        )
+
+    settings = _settings()
+    application = _google_app(settings, handler)
+    async with AsyncClient(
+        transport=ASGITransport(app=application), base_url=settings.public_base_url
+    ) as client:
+        client_id = await _register(client)
+        _, query = await _start_google(client, client_id)
+        callback = await client.get(
+            "/oauth/google/callback",
+            params={"code": "code", "state": parse_qs(query)["state"][0]},
+            follow_redirects=False,
+        )
+        pending = parse_qs(urlparse(callback.headers["location"]).query)["pending"][0]
+        client.cookies.clear()
+        missing = await client.get("/oauth/consent", params={"pending": pending})
+        assert missing.status_code == 400
+        assert missing.json()["detail"] == "Authorization session does not match this browser"
+
+        client.cookies.set("mt_oauth_browser", "wrong-browser")
+        wrong = await client.get("/oauth/consent", params={"pending": pending})
+        assert wrong.status_code == 400
+        assert wrong.json()["detail"] == "Authorization session does not match this browser"
+
+    async with SessionLocal() as session:
+        assert await session.scalar(select(OAuthAuthCode)) is None
+
+
+@pytest.mark.asyncio
+async def test_google_callback_without_consent_rejects_a_different_browser() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url == httpx.URL(GOOGLE_TOKEN_URL):
+            return httpx.Response(200, json={"access_token": "token"})
+        return httpx.Response(
+            200,
+            json={"sub": "bypass-bound-sub", "email": "new@example.com", "email_verified": True},
+        )
+
+    settings = _settings(oauth_require_consent=False)
+    application = _google_app(settings, handler)
+    async with AsyncClient(
+        transport=ASGITransport(app=application), base_url=settings.public_base_url
+    ) as client:
+        client_id = await _register(client)
+        _, query = await _start_google(client, client_id)
+        client.cookies.clear()
+        response = await client.get(
+            "/oauth/google/callback",
+            params={"code": "code", "state": parse_qs(query)["state"][0]},
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Authorization session does not match this browser"
 
 
 @pytest.mark.asyncio

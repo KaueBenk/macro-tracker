@@ -199,6 +199,7 @@ class OAuthPendingAuth(Base):
     client_id: Mapped[str] = mapped_column(String(255))
     state: Mapped[str | None] = mapped_column(Text)
     login_state: Mapped[str | None] = mapped_column(Text, unique=True)
+    browser_hash: Mapped[str | None] = mapped_column(Text)
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )

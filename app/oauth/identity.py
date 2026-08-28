@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import os
+import secrets
 from datetime import UTC, datetime
 from typing import Protocol, runtime_checkable
 from uuid import UUID
@@ -15,6 +16,7 @@ from app.config import Settings
 from app.db import SessionLocal
 from app.models import OAuthPendingAuth, User
 from app.oauth.provider import DbOAuthProvider
+from app.security import create_token, hash_token
 
 
 class IdentityProvider(Protocol):
@@ -55,7 +57,22 @@ def create_login_route(
         except ValueError:
             return JSONResponse({"detail": "Invalid pending authorization"}, status_code=400)
         if isinstance(identity_provider, OAuthLoginStarter):
-            return await identity_provider.begin_login(pending_id)
+            raw_browser_token, browser_hash = create_token()
+            if not await provider.set_browser_hash(pending_id, browser_hash):
+                return JSONResponse(
+                    {"detail": "Pending authorization is invalid or expired"}, status_code=400
+                )
+            response = await identity_provider.begin_login(pending_id)
+            response.set_cookie(
+                "mt_oauth_browser",
+                raw_browser_token,
+                max_age=600,
+                path="/",
+                secure=True,
+                httponly=True,
+                samesite="lax",
+            )
+            return response
         user = await identity_provider.resolve_user(request)
         if user is None:
             if settings.app_env.lower() == "production":
@@ -114,6 +131,11 @@ def create_consent_routes(provider: DbOAuthProvider) -> list[Route]:
             return JSONResponse(
                 {"detail": "Pending authorization is invalid or expired"}, status_code=400
             )
+        if not _browser_matches(request, pending):
+            return JSONResponse(
+                {"detail": "Authorization session does not match this browser"},
+                status_code=400,
+            )
         client = await provider.get_client(pending.client_id)
         client_name = client.client_name if client and client.client_name else pending.client_id
         if request.method == "GET":
@@ -124,7 +146,9 @@ def create_consent_routes(provider: DbOAuthProvider) -> list[Route]:
                 return JSONResponse(
                     {"detail": "Pending authorization is invalid or expired"}, status_code=400
                 )
-            return RedirectResponse(redirect_uri, status_code=302)
+            response = RedirectResponse(redirect_uri, status_code=302)
+            response.delete_cookie("mt_oauth_browser", path="/")
+            return response
         if action != "authorize" or pending.user_id is None:
             return JSONResponse({"detail": "Authorization is required"}, status_code=400)
         redirect_uri = await provider.complete_pending_authorization(pending_id, pending.user_id)
@@ -132,10 +156,21 @@ def create_consent_routes(provider: DbOAuthProvider) -> list[Route]:
             return JSONResponse(
                 {"detail": "Pending authorization is invalid or expired"}, status_code=400
             )
-        return RedirectResponse(
+        response = RedirectResponse(
             redirect_uri, status_code=302, headers={"Cache-Control": "no-store"}
         )
+        response.delete_cookie("mt_oauth_browser", path="/")
+        return response
 
     return [
         Route("/oauth/consent", consent, methods=["GET", "POST"]),
     ]
+
+
+def _browser_matches(request: Request, pending: OAuthPendingAuth) -> bool:
+    if pending.browser_hash is None:
+        return True
+    browser_token = request.cookies.get("mt_oauth_browser")
+    if browser_token is None:
+        return False
+    return secrets.compare_digest(pending.browser_hash, hash_token(browser_token))

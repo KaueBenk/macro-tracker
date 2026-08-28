@@ -108,7 +108,7 @@ valida assinatura de JWT localmente. Contas existentes são vinculadas por `goog
 e-mail; novas contas exigem `ALLOWED_EMAILS` e recebem `DEFAULT_TIMEZONE`. Sem configuração
 Google, o login responde HTTP 503. Após autenticar, `OAUTH_REQUIRE_CONSENT` controla a tela
 de consentimento server-rendered em português; a pending guarda o `user_id` autenticado até
-a emissão do código.
+a emissão do código e fica vinculada ao navegador do login por um cookie seguro de curta duração.
 
 `python -m app.cli create-user --email ... [--timezone ...]` e
 `python -m app.cli create-token --email ... --name ...` (imprime o token em claro uma única vez).

@@ -130,6 +130,8 @@ Após o login Google, a tela de consentimento mostra o nome do cliente MCP e des
 acesso a alimentos, registros, metas e resumos. **Autorizar** emite o código OAuth; **Cancelar**
 retorna `access_denied` ao redirect URI original. A conta autenticada também pode ser consultada
 e atualizada em `GET /api/me` e `PATCH /api/me` (este último aceita somente `timezone` IANA).
+O consentimento é vinculado ao navegador que concluiu o login Google por meio de um cookie
+seguro de curta duração; outro navegador não pode autorizar a pending.
 
 ## MCP
 

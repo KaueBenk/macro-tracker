@@ -15,7 +15,7 @@ from starlette.routing import Route
 from app.config import Settings, get_allowed_emails
 from app.db import SessionLocal
 from app.models import OAuthPendingAuth, User
-from app.oauth.identity import IdentityProvider, OAuthLoginStarter
+from app.oauth.identity import IdentityProvider, OAuthLoginStarter, _browser_matches
 from app.oauth.provider import DbOAuthProvider
 
 GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -176,6 +176,11 @@ def create_google_callback_route(
             pending, _ = await identity_provider.resolve_callback(request)
         except GoogleIdentityError as exc:
             return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+        if not _browser_matches(request, pending):
+            return JSONResponse(
+                {"detail": "Authorization session does not match this browser"},
+                status_code=400,
+            )
         if settings.oauth_require_consent:
             return RedirectResponse(
                 f"{settings.public_base_url}/oauth/consent?pending={pending.id}",
@@ -193,8 +198,10 @@ def create_google_callback_route(
                 {"detail": "Pending authorization is invalid or expired"},
                 status_code=400,
             )
-        return RedirectResponse(
+        response = RedirectResponse(
             redirect_uri, status_code=302, headers={"Cache-Control": "no-store"}
         )
+        response.delete_cookie("mt_oauth_browser", path="/")
+        return response
 
     return Route("/oauth/google/callback", callback, methods=["GET"])

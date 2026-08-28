@@ -89,6 +89,15 @@ class DbOAuthProvider(
             await session.commit()
             return True
 
+    async def set_browser_hash(self, pending_id: UUID, browser_hash: str) -> bool:
+        async with SessionLocal() as session:
+            pending = await session.get(OAuthPendingAuth, pending_id, with_for_update=True)
+            if pending is None or pending.expires_at <= datetime.now(UTC):
+                return False
+            pending.browser_hash = browser_hash
+            await session.commit()
+            return True
+
     async def get_pending_by_login_state(self, login_state: str) -> OAuthPendingAuth | None:
         async with SessionLocal() as session:
             result = await session.execute(
