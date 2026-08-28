@@ -7,6 +7,7 @@ from typing import Annotated
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from mcp.server.auth.routes import build_resource_metadata_url
 from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import Field
@@ -15,17 +16,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.applications import Starlette
 from starlette.types import ASGIApp
 
+from app.config import get_auth_settings
 from app.db import SessionLocal
 from app.mcp.auth import BearerAuthMiddleware, MCPPathAdapter, current_user_id
 from app.models import Entry, Food, Goal, Meal, User
+from app.oauth.provider import DbOAuthProvider
+from app.oauth.verifier import CompositeTokenVerifier
 from app.routers.summary import make_daily_summary
 from app.schemas import EntryRead, FoodRead, GoalRead
 from app.services.nutrition import MacroValues, day_bounds, resolve_entry_macros
+
+oauth_provider = DbOAuthProvider()
+token_verifier = CompositeTokenVerifier(oauth_provider)
 
 server = MCPServer(
     name="macro-tracker",
     version="0.1.0",
     instructions="Track calories and macronutrients for the authenticated user.",
+    auth=get_auth_settings(),
+    token_verifier=token_verifier,
 )
 
 LoggedAtInput = Annotated[
@@ -448,7 +457,10 @@ async def get_range_summary(
             return "Error: could not calculate range summary."
 
 
-def create_mcp_app() -> tuple[ASGIApp, Starlette]:
+def create_mcp_app() -> tuple[ASGIApp, Starlette, DbOAuthProvider]:
+    auth_settings = get_auth_settings()
+    resource_server_url = auth_settings.resource_server_url
+    assert resource_server_url is not None
     transport_app = server.streamable_http_app(
         streamable_http_path="/",
         stateless_http=True,
@@ -456,5 +468,9 @@ def create_mcp_app() -> tuple[ASGIApp, Starlette]:
         transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
     )
     transport_app.router.redirect_slashes = False
-    protected_app = BearerAuthMiddleware(MCPPathAdapter(transport_app))
-    return protected_app, transport_app
+    protected_app = BearerAuthMiddleware(
+        MCPPathAdapter(transport_app),
+        token_verifier,
+        resource_metadata_url=build_resource_metadata_url(resource_server_url),
+    )
+    return protected_app, transport_app, oauth_provider

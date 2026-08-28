@@ -23,7 +23,9 @@ O `.env.example` usa:
 | `APP_ENV` | Ambiente da aplicação | `development` |
 | `DEFAULT_TIMEZONE` | Fuso horário padrão de novos usuários | `America/Sao_Paulo` |
 | `LOG_LEVEL` | Nível de log | `INFO` |
+| `PUBLIC_BASE_URL` | URL pública usada pelo OAuth e pelos metadados MCP | `http://localhost:8000` |
 | `SERVERLESS` | Habilita `NullPool` e configurações do pgbouncer | `false` |
+| `DEV_LOGIN_EMAIL` | E-mail usado pelo login OAuth de desenvolvimento | `voce@example.com` |
 
 Crie um usuário e um token (o token é impresso uma única vez):
 
@@ -86,10 +88,29 @@ uv run alembic check
    Esse passo requer acesso do proprietário do repositório; o `gh` local não configura esse
    segredo sem autenticação.
 
+## Autenticação OAuth 2.1
+
+Além dos tokens bearer estáticos (mantidos para compatibilidade com a API REST e clientes
+existentes), o servidor oferece um Authorization Server OAuth 2.1 com Dynamic Client
+Registration (RFC 7591). Os metadados ficam em:
+
+- `/.well-known/oauth-authorization-server`
+- `/.well-known/oauth-protected-resource/mcp`
+
+O fluxo usa authorization code com PKCE S256, tokens de acesso com duração de uma hora,
+refresh tokens rotativos com duração de 30 dias e revogação em `/revoke`. Os escopos
+aceitos são `mcp` e `ACCESS_VIEW_MANAGE_MCP_CONTENT`; este último é aceito apenas por
+compatibilidade com clientes Google e não concede permissões adicionais.
+
+No ambiente de desenvolvimento, `/oauth/login?pending=<id>&email=<email>` resolve um
+usuário existente pelo e-mail (ou por `DEV_LOGIN_EMAIL`) e conclui a autorização. Esse
+provedor é deliberadamente bloqueado em produção com HTTP 503. A integração de identidade
+Google será adicionada posteriormente pela mesma interface `IdentityProvider`.
+
 ## MCP
 
-O endpoint remoto é `https://<seu-app>.vercel.app/mcp`. O cliente MCP deve enviar o mesmo
-bearer token usado pela API REST:
+O endpoint remoto é `https://<seu-app>.vercel.app/mcp`. Clientes que suportam OAuth devem
+usar o registro dinâmico e os metadados acima. O bearer token estático continua aceito:
 
 ```json
 {

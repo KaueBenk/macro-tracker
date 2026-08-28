@@ -15,7 +15,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -40,6 +40,7 @@ class User(TimestampMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True)
     timezone: Mapped[str] = mapped_column(String(64), default="America/Sao_Paulo")
+    google_sub: Mapped[str | None] = mapped_column(String(255), unique=True)
     tokens: Mapped[list["ApiToken"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -136,3 +137,72 @@ class Goal(TimestampMixin, Base):
     fat_g: Mapped[Decimal] = mapped_column(Numeric(8, 2))
     fiber_g: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
     user: Mapped[User] = relationship(back_populates="goals")
+
+
+class OAuthClient(Base):
+    __tablename__ = "oauth_clients"
+
+    client_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    client_secret_hash: Mapped[str | None] = mapped_column(String(64))
+    client_metadata: Mapped[dict[str, object]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+
+class OAuthAuthCode(Base):
+    __tablename__ = "oauth_auth_codes"
+
+    code_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    client_id: Mapped[str] = mapped_column(String(255))
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    scopes: Mapped[list[str]] = mapped_column(JSONB)
+    code_challenge: Mapped[str] = mapped_column(String(255))
+    redirect_uri: Mapped[str] = mapped_column(Text)
+    redirect_uri_provided_explicitly: Mapped[bool] = mapped_column()
+    resource: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+
+class OAuthToken(Base):
+    __tablename__ = "oauth_tokens"
+    __table_args__ = (
+        Index("ix_oauth_tokens_user_id", "user_id"),
+        Index("ix_oauth_tokens_client_id", "client_id"),
+    )
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    client_id: Mapped[str] = mapped_column(String(255))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    scopes: Mapped[list[str]] = mapped_column(JSONB)
+    resource: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    parent_hash: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+
+class OAuthPendingAuth(Base):
+    __tablename__ = "oauth_pending_auth"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id: Mapped[str] = mapped_column(String(255))
+    state: Mapped[str | None] = mapped_column(Text)
+    scopes: Mapped[list[str]] = mapped_column(JSONB)
+    code_challenge: Mapped[str] = mapped_column(String(255))
+    redirect_uri: Mapped[str] = mapped_column(Text)
+    redirect_uri_provided_explicitly: Mapped[bool] = mapped_column()
+    resource: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )

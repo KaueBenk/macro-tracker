@@ -8,13 +8,27 @@ from sqlalchemy import delete
 
 from app.db import SessionLocal, engine
 from app.main import app
-from app.models import ApiToken, Entry, Food, Goal, User
+from app.models import (
+    ApiToken,
+    Entry,
+    Food,
+    Goal,
+    OAuthAuthCode,
+    OAuthClient,
+    OAuthPendingAuth,
+    OAuthToken,
+    User,
+)
 
 
 @pytest_asyncio.fixture(autouse=True)
 async def clean_database() -> AsyncIterator[None]:
     await engine.dispose()
     async with SessionLocal() as session:
+        await session.execute(delete(OAuthPendingAuth))
+        await session.execute(delete(OAuthAuthCode))
+        await session.execute(delete(OAuthToken))
+        await session.execute(delete(OAuthClient))
         await session.execute(delete(Entry))
         await session.execute(delete(Goal))
         await session.execute(delete(Food))
@@ -23,6 +37,10 @@ async def clean_database() -> AsyncIterator[None]:
         await session.commit()
     yield
     async with SessionLocal() as session:
+        await session.execute(delete(OAuthPendingAuth))
+        await session.execute(delete(OAuthAuthCode))
+        await session.execute(delete(OAuthToken))
+        await session.execute(delete(OAuthClient))
         await session.execute(delete(Entry))
         await session.execute(delete(Goal))
         await session.execute(delete(Food))

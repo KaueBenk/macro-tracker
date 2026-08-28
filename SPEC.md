@@ -86,6 +86,23 @@ Token gerado com `secrets.token_urlsafe(32)`, guardado apenas como `sha256`. Res
 hash → `api_tokens` (não revogado) → `users`. Atualiza `last_used_at` (best-effort, sem falhar a
 request). 401 quando ausente/inválido. Todos os recursos são escopados pelo `user_id` do token.
 
+O mesmo servidor também é um Authorization Server OAuth 2.1 para clientes MCP remotos:
+
+- DCR em `POST /register` (RFC 7591).
+- Metadados do AS em `/.well-known/oauth-authorization-server`.
+- Metadados do recurso em `/.well-known/oauth-protected-resource/mcp` (RFC 9728).
+- Authorization code com PKCE S256 em `/authorize` e `/token`.
+- Access tokens de uma hora, refresh tokens rotativos de 30 dias e revogação em `/revoke`.
+- Apenas hashes SHA-256 de códigos e tokens OAuth são persistidos.
+- O `subject` do access token é o UUID do usuário, mantendo o isolamento multiusuário das
+  tools MCP.
+
+Os escopos aceitos são `mcp` e `ACCESS_VIEW_MANAGE_MCP_CONTENT`. O segundo é uma exigência
+de compatibilidade de clientes Google e não concede nenhuma permissão adicional; não há
+escopo obrigatório no resource server. Em desenvolvimento, `DevIdentityProvider` resolve
+um usuário existente por e-mail (`email` na rota de login ou `DEV_LOGIN_EMAIL`). Em
+produção essa seam responde HTTP 503 até que o provedor de identidade Google seja integrado.
+
 `python -m app.cli create-user --email ... [--timezone ...]` e
 `python -m app.cli create-token --email ... --name ...` (imprime o token em claro uma única vez).
 
@@ -108,9 +125,11 @@ request). 401 quando ausente/inválido. Todos os recursos são escopados pelo `u
 ## Servidor MCP
 
 Montado em `/mcp` (streamable HTTP, `stateless_http=True`, `json_response=True` — obrigatório em
-serverless). Autenticação: middleware ASGI próprio na frente da app MCP, que valida o bearer token
-e guarda o `user_id` num `contextvar` lido pelas tools. (Alternativa considerada: `token_verifier`
-+ `AuthSettings` do SDK; exige configurar issuer/resource server OAuth, desnecessário aqui.)
+serverless). Autenticação: o verificador composto tenta primeiro access tokens OAuth e depois
+os tokens estáticos legados. O middleware ASGI próprio guarda o `subject` (UUID do usuário)
+num `contextvar` lido pelas tools. A configuração OAuth usa o `AuthSettings` e os handlers
+de protocolo do SDK; a identidade humana permanece isolada atrás da interface
+`IdentityProvider`.
 
 Tools (nomes e descrições em inglês, para o agente; erros retornam mensagem clara, não stacktrace):
 
@@ -158,5 +177,5 @@ Datas aceitas como `YYYY-MM-DD` e `logged_at` ISO-8601; ausente = agora no tz do
 
 ## Fora de escopo nesta etapa
 
-GUI web (etapa 2), busca em base pública de alimentos (ex. OpenFoodFacts), OAuth, multiusuário
-com signup self-service.
+GUI web (etapa 2), busca em base pública de alimentos (ex. OpenFoodFacts), login Google e
+signup self-service.

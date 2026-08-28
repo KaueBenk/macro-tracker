@@ -1,6 +1,13 @@
 import os
 from functools import lru_cache
 
+from mcp.server.auth.settings import (
+    AuthSettings as MCPAuthSettings,
+)
+from mcp.server.auth.settings import (
+    ClientRegistrationOptions,
+    RevocationOptions,
+)
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
@@ -15,6 +22,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     default_timezone: str = "America/Sao_Paulo"
     log_level: str = "INFO"
+    public_base_url: str = "http://localhost:8000"
     serverless: bool = Field(default_factory=_default_serverless)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -34,7 +42,28 @@ class Settings(BaseSettings):
             query["ssl"] = sslmode
         return url.set(query=query).render_as_string(hide_password=False)
 
+    @field_validator("public_base_url", mode="before")
+    @classmethod
+    def normalize_public_base_url(cls, value: str) -> str:
+        return value.rstrip("/")
+
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def get_auth_settings() -> MCPAuthSettings:
+    settings = get_settings()
+    base_url = settings.public_base_url
+    return MCPAuthSettings(
+        issuer_url=base_url,
+        resource_server_url=f"{base_url}/mcp",
+        client_registration_options=ClientRegistrationOptions(
+            enabled=True,
+            valid_scopes=["mcp", "ACCESS_VIEW_MANAGE_MCP_CONTENT"],
+            default_scopes=["mcp"],
+        ),
+        revocation_options=RevocationOptions(enabled=True),
+        required_scopes=None,
+    )
