@@ -11,6 +11,7 @@ from app.db import SessionLocal
 from app.main import app
 from app.models import Food, Goal
 from app.services.nutrition import MacroValues, effective_goal, resolve_entry_macros
+from app.text import normalize_search_text
 from tests.conftest import create_identity
 
 
@@ -252,6 +253,105 @@ async def test_global_food_search_is_visible_but_private_food_is_scoped(
     assert response.status_code == 200
     names = {food["name"] for food in response.json()}
     assert names == {"Global quinoa"}
+
+
+def test_normalize_search_text_removes_accents_and_collapses_spaces() -> None:
+    assert normalize_search_text("  Feijão ", None, "CARIOCA", "  cozido  ") == (
+        "feijao carioca cozido"
+    )
+
+
+@pytest.mark.asyncio
+async def test_food_search_supports_accent_free_multi_token_queries(
+    client: AsyncClient,
+) -> None:
+    _, token = await create_identity("search@example.com")
+    async with SessionLocal() as session:
+        session.add_all(
+            [
+                Food(
+                    user_id=None,
+                    name="Feijão, carioca, cozido",
+                    kcal=76,
+                    protein_g=4.8,
+                    carbs_g=13.6,
+                    fat_g=0.5,
+                ),
+                Food(
+                    user_id=None,
+                    name="Arroz, integral, cozido",
+                    kcal=123,
+                    protein_g=2.6,
+                    carbs_g=25.8,
+                    fat_g=1,
+                ),
+                Food(
+                    user_id=None,
+                    name="Arroz branco cozido",
+                    kcal=128,
+                    protein_g=2.5,
+                    carbs_g=28.1,
+                    fat_g=0.2,
+                ),
+            ]
+        )
+        await session.commit()
+    headers = {"Authorization": f"Bearer {token}"}
+    bean = await client.get("/api/foods?search=feijao", headers=headers)
+    assert [food["name"] for food in bean.json()] == ["Feijão, carioca, cozido"]
+    rice = await client.get("/api/foods?search=arroz%20integral", headers=headers)
+    assert [food["name"] for food in rice.json()] == ["Arroz, integral, cozido"]
+
+
+@pytest.mark.asyncio
+async def test_private_food_precedes_global_food_with_same_name(client: AsyncClient) -> None:
+    _, token = await create_identity("ordering@example.com")
+    async with SessionLocal() as session:
+        session.add(
+            Food(
+                user_id=None,
+                name="Ovo cozido",
+                kcal=155,
+                protein_g=13,
+                carbs_g=1,
+                fat_g=11,
+            )
+        )
+        await session.commit()
+    private = await client.post(
+        "/api/foods",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "Ovo cozido", "kcal": 160, "protein_g": 14, "carbs_g": 1, "fat_g": 12},
+    )
+    assert private.status_code == 201
+    response = await client.get(
+        "/api/foods?search=ovo", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert [food["user_id"] for food in response.json()] == [
+        private.json()["user_id"],
+        None,
+    ]
+
+
+@pytest.mark.asyncio
+async def test_food_search_text_updates_after_patch(client: AsyncClient) -> None:
+    _, token = await create_identity("search-update@example.com")
+    created = await client.post(
+        "/api/foods",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "Batata", "kcal": 80, "protein_g": 2, "carbs_g": 18, "fat_g": 0},
+    )
+    food_id = created.json()["id"]
+    updated = await client.patch(
+        f"/api/foods/{food_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "Batata doce"},
+    )
+    assert updated.status_code == 200
+    sweet = await client.get("/api/foods?search=doce", headers={"Authorization": f"Bearer {token}"})
+    assert [food["name"] for food in sweet.json()] == ["Batata doce"]
+    old = await client.get("/api/foods?search=batata", headers={"Authorization": f"Bearer {token}"})
+    assert [food["name"] for food in old.json()] == ["Batata doce"]
 
 
 @pytest.mark.asyncio

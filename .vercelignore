@@ -7,3 +7,5 @@
 tests
 alembic
 SPEC.md
+data
+scripts

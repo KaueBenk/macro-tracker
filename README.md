@@ -45,6 +45,15 @@ uv run uvicorn app.main:app --reload
 uv run pytest -q
 ```
 
+Os alimentos globais incluem a Tabela Brasileira de Composição de Alimentos (TACO),
+4ª edição, do NEPA/UNICAMP (<https://nepa.unicamp.br/publicacoes/tabela-taco-excel/>).
+Atribua e cite o NEPA/UNICAMP ao utilizar esses dados. A busca ignora acentos e exige
+todos os termos informados, permitindo encontrar alimentos brasileiros como `feijao`
+e `arroz integral`; alimentos cadastrados pelo usuário aparecem antes dos globais.
+Para reconstruir o dataset, use `uv run --with openpyxl python scripts/build_taco_dataset.py`;
+para importá-lo ou atualizá-lo no banco, use `uv run python scripts/import_taco.py`
+(ou `--dry-run`).
+
 A API fica em `http://localhost:8000`; `GET /health` não exige autenticação.
 Os endpoints REST autenticados usam `Authorization: Bearer <token>`, por exemplo:
 
@@ -159,4 +168,4 @@ uv run python -m app.cli create-token --email voce@example.com --name agente
 
 O token é exibido uma única vez. As tools aceitam datas locais em `YYYY-MM-DD`, timestamps
 `logged_at` em ISO-8601 e macros em gramas; os nutrientes cadastrados em alimentos são por
-100 g.
+100 g. A resposta de alimentos também inclui `source`, `source_ref` e `category`.

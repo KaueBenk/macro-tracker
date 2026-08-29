@@ -12,6 +12,7 @@ Macro = Annotated[float, Field(ge=0)]
 class FoodBase(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     brand: str | None = None
+    category: str | None = None
     kcal: Macro
     protein_g: Macro
     carbs_g: Macro
@@ -41,6 +42,8 @@ class FoodRead(FoodBase):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     user_id: uuid.UUID | None
+    source: str | None
+    source_ref: str | None
     created_at: datetime
     updated_at: datetime
 

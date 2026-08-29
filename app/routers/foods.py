@@ -1,13 +1,14 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.models import Food, User
 from app.schemas import FoodCreate, FoodRead, FoodUpdate
 from app.security import get_current_user
+from app.text import search_terms
 
 router = APIRouter(prefix="/foods", tags=["foods"])
 
@@ -33,10 +34,20 @@ async def list_foods(
     session: AsyncSession = Depends(get_session),
 ) -> list[Food]:
     query = select(Food).where(or_(Food.user_id == user.id, Food.user_id.is_(None)))
-    if search:
-        term = f"%{search}%"
-        query = query.where(or_(Food.name.ilike(term), Food.brand.ilike(term)))
-    result = await session.execute(query.order_by(Food.name).limit(limit))
+    terms = search_terms(search or "")
+    for term in terms:
+        escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        fallback = f"%{search or ''}%"
+        query = query.where(
+            or_(
+                Food.search_text.like(f"%{escaped}%", escape="\\"),
+                Food.search_text.is_(None)
+                & (Food.name.ilike(fallback) | Food.brand.ilike(fallback)),
+            )
+        )
+    result = await session.execute(
+        query.order_by(Food.user_id.is_(None), func.length(Food.name), Food.name).limit(limit)
+    )
     return list(result.scalars())
 
 
@@ -71,6 +82,8 @@ async def update_food(
         food.name = data["name"]
     if "brand" in data:
         food.brand = data["brand"]
+    if "category" in data:
+        food.category = data["category"]
     if "kcal" in data:
         food.kcal = data["kcal"]
     if "protein_g" in data:

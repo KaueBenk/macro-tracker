@@ -11,7 +11,7 @@ from mcp.server.auth.routes import build_resource_metadata_url
 from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.applications import Starlette
 from starlette.types import ASGIApp
@@ -25,6 +25,7 @@ from app.oauth.verifier import CompositeTokenVerifier
 from app.routers.summary import make_daily_summary
 from app.schemas import EntryRead, FoodRead, GoalRead
 from app.services.nutrition import MacroValues, day_bounds, resolve_entry_macros
+from app.text import search_terms
 
 oauth_provider = DbOAuthProvider()
 token_verifier = CompositeTokenVerifier(oauth_provider)
@@ -265,15 +266,21 @@ async def search_foods(
         if user is None:
             return "Error: authenticated user was not found."
         try:
-            term = f"%{query}%"
-            result = await session.execute(
-                select(Food)
-                .where(
-                    ((Food.user_id == user.id) | Food.user_id.is_(None))
-                    & (Food.name.ilike(term) | Food.brand.ilike(term))
+            statement = select(Food).where((Food.user_id == user.id) | Food.user_id.is_(None))
+            for term in search_terms(query):
+                escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+                fallback = f"%{query}%"
+                statement = statement.where(
+                    Food.search_text.like(f"%{escaped}%", escape="\\")
+                    | (
+                        Food.search_text.is_(None)
+                        & (Food.name.ilike(fallback) | Food.brand.ilike(fallback))
+                    )
                 )
-                .order_by(Food.name)
-                .limit(limit)
+            result = await session.execute(
+                statement.order_by(Food.user_id.is_(None), func.length(Food.name), Food.name).limit(
+                    limit
+                )
             )
             return _json(
                 [FoodRead.model_validate(food).model_dump(mode="json") for food in result.scalars()]

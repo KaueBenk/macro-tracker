@@ -52,7 +52,9 @@ Todas as tabelas com `id UUID PK default uuid4`, `created_at`/`updated_at timest
   `revoked_at` nullable
 - `foods`: `user_id FK nullable` (null = alimento global), `name`, `brand` nullable,
   nutrientes **por 100 g**: `kcal`, `protein_g`, `carbs_g`, `fat_g`, `fiber_g` nullable,
-  `serving_label` nullable, `serving_grams` nullable.
+  `serving_label` nullable, `serving_grams` nullable, `source`, `source_ref`, `category` e
+  `search_text`. `source`/`source_ref` identificam datasets globais e são protegidos contra
+  duplicação; a API não permite que o usuário os defina.
   Unique: `(user_id, lower(name), coalesce(brand,''))`
 - `entries`: `user_id FK`, `logged_at timestamptz` (UTC), `meal` enum
   (`breakfast|lunch|dinner|snack|other`), `food_id FK nullable`, `description` nullable,
@@ -116,8 +118,9 @@ a emissão do código e fica vinculada ao navegador do login por um cookie segur
 ## REST API (prefixo `/api`)
 
 - `GET /health` — sem auth; `{"status":"ok"}` (não toca no banco)
-- `POST /api/foods`, `GET /api/foods?search=&limit=` (busca case-insensitive por nome/brand,
-  retorna alimentos do usuário + globais), `GET/PATCH/DELETE /api/foods/{id}`
+- `POST /api/foods`, `GET /api/foods?search=&limit=` (busca sem acentos, com todos os termos
+  exigidos, por nome/brand/categoria; retorna alimentos do usuário + globais), `GET/PATCH/DELETE
+  /api/foods/{id}`
 - `POST /api/entries` (body: `logged_at?` default now, `meal`, `food_id?`, `description?`,
   `quantity_g?`, macros opcionais), `GET /api/entries?date=` ou `?from=&to=`,
   `PATCH/DELETE /api/entries/{id}`
@@ -154,6 +157,12 @@ Tools (nomes e descrições em inglês, para o agente; erros retornam mensagem c
 | `get_range_summary` | `from`, `to` | totais por dia + médias |
 
 Datas aceitas como `YYYY-MM-DD` e `logged_at` ISO-8601; ausente = agora no tz do usuário.
+
+Os alimentos globais incluem a Tabela Brasileira de Composição de Alimentos (TACO), 4ª edição,
+do NEPA/UNICAMP (<https://nepa.unicamp.br/publicacoes/tabela-taco-excel/>), com atribuição e
+citação obrigatórias à fonte. O dataset versionado em `data/taco.json` pode ser reconstruído
+com `uv run --with openpyxl python scripts/build_taco_dataset.py` e importado com
+`uv run python scripts/import_taco.py` (ou `--dry-run`).
 
 ## Deploy / infra
 

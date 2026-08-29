@@ -13,10 +13,14 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    event,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.engine import Connection
+from sqlalchemy.orm import DeclarativeBase, Mapped, Mapper, mapped_column, relationship
+
+from app.text import normalize_search_text
 
 
 class Base(DeclarativeBase):
@@ -75,6 +79,13 @@ class Food(TimestampMixin, Base):
             text("coalesce(brand, '')"),
             unique=True,
         ),
+        Index(
+            "uq_food_source_ref",
+            "source",
+            "source_ref",
+            unique=True,
+            postgresql_where=text("source is not null"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -90,7 +101,17 @@ class Food(TimestampMixin, Base):
     fiber_g: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
     serving_label: Mapped[str | None] = mapped_column(String(100))
     serving_grams: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
+    source: Mapped[str | None] = mapped_column(String(20))
+    source_ref: Mapped[str | None] = mapped_column(String(50))
+    category: Mapped[str | None] = mapped_column(String(100))
+    search_text: Mapped[str | None] = mapped_column(Text)
     user: Mapped[User | None] = relationship(back_populates="foods")
+
+
+@event.listens_for(Food, "before_insert")
+@event.listens_for(Food, "before_update")
+def update_food_search_text(_: Mapper[Food], __: Connection, target: Food) -> None:
+    target.search_text = normalize_search_text(target.name, target.brand, target.category)
 
 
 class Meal(str, enum.Enum):
