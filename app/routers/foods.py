@@ -37,14 +37,7 @@ async def list_foods(
     terms = search_terms(search or "")
     for term in terms:
         escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        fallback = f"%{search or ''}%"
-        query = query.where(
-            or_(
-                Food.search_text.like(f"%{escaped}%", escape="\\"),
-                Food.search_text.is_(None)
-                & (Food.name.ilike(fallback) | Food.brand.ilike(fallback)),
-            )
-        )
+        query = query.where(Food.search_text.like(f"%{escaped}%", escape="\\"))
     result = await session.execute(
         query.order_by(Food.user_id.is_(None), func.length(Food.name), Food.name).limit(limit)
     )

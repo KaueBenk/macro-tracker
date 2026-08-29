@@ -269,14 +269,7 @@ async def search_foods(
             statement = select(Food).where((Food.user_id == user.id) | Food.user_id.is_(None))
             for term in search_terms(query):
                 escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-                fallback = f"%{query}%"
-                statement = statement.where(
-                    Food.search_text.like(f"%{escaped}%", escape="\\")
-                    | (
-                        Food.search_text.is_(None)
-                        & (Food.name.ilike(fallback) | Food.brand.ilike(fallback))
-                    )
-                )
+                statement = statement.where(Food.search_text.like(f"%{escaped}%", escape="\\"))
             result = await session.execute(
                 statement.order_by(Food.user_id.is_(None), func.length(Food.name), Food.name).limit(
                     limit

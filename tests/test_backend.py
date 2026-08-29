@@ -339,17 +339,30 @@ async def test_food_search_text_updates_after_patch(client: AsyncClient) -> None
     created = await client.post(
         "/api/foods",
         headers={"Authorization": f"Bearer {token}"},
-        json={"name": "Batata", "kcal": 80, "protein_g": 2, "carbs_g": 18, "fat_g": 0},
+        json={
+            "name": "Batata",
+            "category": "Tubérculos",
+            "kcal": 80,
+            "protein_g": 2,
+            "carbs_g": 18,
+            "fat_g": 0,
+        },
     )
     food_id = created.json()["id"]
     updated = await client.patch(
         f"/api/foods/{food_id}",
         headers={"Authorization": f"Bearer {token}"},
-        json={"name": "Batata doce"},
+        json={"name": "Batata doce", "category": "Raízes doces"},
     )
     assert updated.status_code == 200
+    assert updated.json()["category"] == "Raízes doces"
     sweet = await client.get("/api/foods?search=doce", headers={"Authorization": f"Bearer {token}"})
     assert [food["name"] for food in sweet.json()] == ["Batata doce"]
+    category = await client.get(
+        "/api/foods?search=raizes doces",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert [food["name"] for food in category.json()] == ["Batata doce"]
     old = await client.get("/api/foods?search=batata", headers={"Authorization": f"Bearer {token}"})
     assert [food["name"] for food in old.json()] == ["Batata doce"]
 

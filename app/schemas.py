@@ -29,6 +29,7 @@ class FoodCreate(FoodBase):
 class FoodUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     brand: str | None = None
+    category: str | None = None
     kcal: Macro | None = None
     protein_g: Macro | None = None
     carbs_g: Macro | None = None
