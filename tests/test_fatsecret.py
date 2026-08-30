@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import parse_qs
@@ -12,6 +13,7 @@ from app.db import SessionLocal
 from app.models import Entry, Food, Meal
 from app.providers.base import ProviderError, ProviderFood
 from app.providers.fatsecret import (
+    _TOKEN_CACHE,
     FATSECRET_ATTRIBUTION,
     FatSecretProvider,
     fatsecret_factory,
@@ -24,6 +26,13 @@ from tests.conftest import create_identity
 
 def _settings() -> Settings:
     return Settings(fatsecret_client_id="client", fatsecret_client_secret="secret")
+
+
+@pytest.fixture(autouse=True)
+def clear_fatsecret_token_cache() -> Generator[None, None, None]:
+    _TOKEN_CACHE.clear()
+    yield
+    _TOKEN_CACHE.clear()
 
 
 def _detail(
@@ -153,9 +162,28 @@ async def test_fatsecret_expired_token_is_renewed() -> None:
 
     provider = FatSecretProvider(_settings(), transport=httpx.MockTransport(handler))
     await provider.fetch("42")
-    provider._token_expires_at = 0
+    _TOKEN_CACHE["client"].expires_at = 0
     await provider.fetch("42")
     assert token_calls == 2
+
+
+@pytest.mark.asyncio
+async def test_distinct_fatsecret_providers_share_token_cache() -> None:
+    token_calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal token_calls
+        if request.url.host == "oauth.fatsecret.com":
+            token_calls += 1
+            return httpx.Response(200, json={"access_token": "shared", "expires_in": 3600})
+        return httpx.Response(200, json=_detail(servings={"serving": [_serving("100")]}))
+
+    transport = httpx.MockTransport(handler)
+    first = FatSecretProvider(_settings(), transport=transport)
+    second = FatSecretProvider(_settings(), transport=transport)
+    await first.fetch("42")
+    await second.fetch("42")
+    assert token_calls == 1
 
 
 def test_fatsecret_serving_selection_and_discard_rules() -> None:

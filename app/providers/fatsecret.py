@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import Mapping
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
@@ -11,6 +12,16 @@ from app.config import Settings
 from app.providers.base import FoodProvider, ProviderError, ProviderFood
 
 FATSECRET_ATTRIBUTION = "Powered by FatSecret Platform API (https://platform.fatsecret.com)"
+
+
+@dataclass
+class _TokenState:
+    token: str | None = None
+    expires_at: float = 0.0
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+
+_TOKEN_CACHE: dict[str, _TokenState] = {}
 
 
 class FatSecretProvider:
@@ -28,9 +39,6 @@ class FatSecretProvider:
         self.client_secret = settings.fatsecret_client_secret
         self.detail_limit = settings.fatsecret_detail_limit
         self._transport = transport
-        self._token: str | None = None
-        self._token_expires_at = 0.0
-        self._token_lock = asyncio.Lock()
 
     async def search(self, query: str, limit: int) -> list[ProviderFood]:
         payload = await self._api_request(
@@ -62,13 +70,14 @@ class FatSecretProvider:
         return self._parse_food(food) if isinstance(food, Mapping) else None
 
     async def _get_token(self) -> str:
+        state = _TOKEN_CACHE.setdefault(self.client_id, _TokenState())
         now = time.monotonic()
-        if self._token is not None and now < self._token_expires_at:
-            return self._token
-        async with self._token_lock:
+        if state.token is not None and now < state.expires_at:
+            return state.token
+        async with state.lock:
             now = time.monotonic()
-            if self._token is not None and now < self._token_expires_at:
-                return self._token
+            if state.token is not None and now < state.expires_at:
+                return state.token
             try:
                 async with httpx.AsyncClient(
                     base_url=self.token_url,
@@ -87,8 +96,8 @@ class FatSecretProvider:
             expires_in = self._number(payload.get("expires_in"))
             if not isinstance(token, str) or not token or expires_in is None:
                 raise ProviderError("FatSecret token response did not contain a valid token")
-            self._token = token
-            self._token_expires_at = time.monotonic() + max(expires_in - 60.0, 0.0)
+            state.token = token
+            state.expires_at = time.monotonic() + max(expires_in - 60.0, 0.0)
             return token
 
     async def _api_request(self, params: dict[str, str]) -> dict[str, Any]:
