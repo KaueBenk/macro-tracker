@@ -1,4 +1,5 @@
 from app.providers.base import BarcodeProvider, FoodProvider, ProviderError, ProviderFood
+from app.providers.fatsecret import FATSECRET_ATTRIBUTION, FatSecretProvider, fatsecret_factory
 from app.providers.off import OFF_ATTRIBUTION, OFFProvider, off_factory
 from app.providers.registry import SOURCE_PRIORITY, get_enabled_providers, register_provider
 from app.providers.tbca import TBCA_ATTRIBUTION, TBCAProvider, tbca_factory
@@ -16,9 +17,12 @@ __all__ = [
     "USDAProvider",
     "TBCA_ATTRIBUTION",
     "TBCAProvider",
+    "FATSECRET_ATTRIBUTION",
+    "FatSecretProvider",
     "get_enabled_providers",
     "register_provider",
     "off_factory",
     "usda_factory",
     "tbca_factory",
+    "fatsecret_factory",
 ]

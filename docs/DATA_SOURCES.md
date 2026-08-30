@@ -10,7 +10,7 @@ where the source requires it and is displayed by food search responses.
 | TBCA 7.3 | CC BY-NC-ND 4.0: no total or partial reproduction, commercial use, or alteration; mandatory citation. | Use only for this personal, non-commercial project; query on demand and write results directly into the private database without versioning or redistributing the data. |
 | Open Food Facts | Database ODbL, contents DbCL, images CC BY-SA; attribution and share-alike obligations apply when publishing the database. | P3 API plus cache, primarily for barcodes; do not publish the database. Use v3 for products, v2 for search, and an identifying User-Agent. |
 | USDA FoodData Central | CC0 1.0; citation suggested. API requires a free api.data.gov key and allows 1,000 requests/hour/IP. | API integration in P2 with opt-in `remote=true`; materialize results as global foods and cache indefinitely (`expires_at = NULL`). |
-| FatSecret Basic | Free tier: 5,000 calls/day; US-only dataset; attribution required. Developer Terms prohibit caching user data over 24 hours except listed indefinitely storable IDs. | API integration planned for P5; nutrient rows expire after 24 hours and are purged by a job. The entry's macro snapshot is the user's own record. |
+| FatSecret Basic | Free tier: 5,000 calls/day; US-only dataset; attribution required. Developer Terms prohibit caching user data over 24 hours except listed indefinitely storable IDs. | Optional API integration with 24-hour nutrient cache and daily purge; the entry's macro snapshot is the user's own record. |
 
 ## TACO
 
@@ -86,13 +86,19 @@ per-serving values rather than the required per-100-g values.
 ## FatSecret
 
 FatSecret Basic is free for 5,000 calls/day, covers only the US dataset, and
-requires attribution. Its Developer Terms prohibit caching user data for more
-than 24 hours, except for fields listed as storable indefinitely, including
-`food_id` and `serving_id` but not nutrients. The provider is planned for P5:
-FatSecret food rows receive `expires_at = now + 24h` and a purge job removes
-expired cache rows. The macro snapshot stored in a user's entry is the user's
-own record, not redistribution of the FatSecret dataset. FatSecret can be
-disabled through configuration if this interpretation is not acceptable.
+requires attribution displayed with each food. Its Developer Terms prohibit
+caching user data for more than 24 hours, except for fields listed as storable
+indefinitely, including `food_id` and `serving_id` but not nutrients. The
+provider uses OAuth 2.0 client credentials and is disabled unless both
+`FATSECRET_CLIENT_ID` and `FATSECRET_CLIENT_SECRET` are configured. FatSecret
+food rows receive `expires_at = now + 24h`; the daily
+`.github/workflows/purge-cache.yml` workflow removes expired rows. The macro
+snapshot stored in a user's entry is the user's own record, not redistribution
+of the FatSecret dataset. FatSecret can be disabled through configuration if
+this interpretation is not acceptable. FatSecret token issuance requires an IP
+allowlist, which is incompatible with dynamic IPs on Vercel Hobby; therefore
+the provider is practical for local or fixed-IP hosting and remains disabled
+in production until a stable IP is available.
 
 ## Operational obligations
 
@@ -104,5 +110,6 @@ disabled through configuration if this interpretation is not acceptable.
 - Use TBCA only on demand, never crawl the complete database, and display its
   citation with every materialized food.
 - Purge expired FatSecret cache rows.
+- Configure the GitHub `DATABASE_URL` secret before enabling the purge workflow.
 - Keep source version, fetch time, expiry, and archival metadata with imported
   foods so stale upstream data can be excluded without breaking existing entries.

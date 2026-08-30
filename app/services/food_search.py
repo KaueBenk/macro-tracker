@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from collections.abc import Sequence
+from datetime import timedelta
 
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,10 +58,15 @@ async def search_foods(
                 logger.warning("Food provider search failed: %s", remote_result)
             else:
                 provider_foods.extend(remote_result)
-        await upsert_provider_foods(
-            session,
-            provider_foods,
-        )
+        foods_by_source: dict[str, list[ProviderFood]] = {}
+        for food in provider_foods:
+            foods_by_source.setdefault(food.source, []).append(food)
+        for source, foods in foods_by_source.items():
+            await upsert_provider_foods(
+                session,
+                foods,
+                ttl=timedelta(hours=24) if source == "fatsecret" else None,
+            )
         if provider_foods:
             await session.commit()
 

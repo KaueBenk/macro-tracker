@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     off_user_agent: str = "macro-tracker/0.1 (https://github.com/KaueBenk/macro-tracker)"
     tbca_detail_limit: int = 5
     provider_timeout_seconds: float = 5.0
+    fatsecret_client_id: str = ""
+    fatsecret_client_secret: str = ""
+    fatsecret_detail_limit: int = 5
     serverless: bool = Field(default_factory=_default_serverless)
 
     model_config = SettingsConfigDict(

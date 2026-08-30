@@ -56,7 +56,8 @@ async def create_entry(
         logged_at=logged_at,
         meal=payload.meal,
         food_id=payload.food_id,
-        description=payload.description,
+        description=payload.description
+        or (food.name if food is not None and food.expires_at else None),
         quantity_g=payload.quantity_g,
         kcal=macros.kcal,
         protein_g=macros.protein_g,

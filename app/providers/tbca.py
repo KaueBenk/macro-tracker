@@ -102,7 +102,8 @@ def _parse_number(value: str) -> float | None:
     normalized = value.strip().lower()
     if normalized in {"", "na", "-", "—", "tr", "traço"}:
         return 0.0 if normalized in {"tr", "traço"} else None
-    normalized = normalized.replace(".", "").replace(",", ".")
+    if "," in normalized:
+        normalized = normalized.replace(".", "").replace(",", ".")
     try:
         return float(normalized)
     except ValueError:

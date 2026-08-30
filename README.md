@@ -35,6 +35,9 @@ O `.env.example` usa:
 | `OFF_USER_AGENT` | User-Agent exigido pelo Open Food Facts | `macro-tracker/0.1 (https://github.com/KaueBenk/macro-tracker)` |
 | `PROVIDER_TIMEOUT_SECONDS` | Timeout dos providers remotos | `5.0` |
 | `TBCA_DETAIL_LIMIT` | Máximo de detalhes TBCA por busca | `5` |
+| `FATSECRET_CLIENT_ID` | Client ID da FatSecret Basic | — |
+| `FATSECRET_CLIENT_SECRET` | Client secret da FatSecret Basic | — |
+| `FATSECRET_DETAIL_LIMIT` | Máximo de detalhes FatSecret por busca | `5` |
 
 Crie um usuário e um token (o token é impresso uma única vez):
 
@@ -75,6 +78,11 @@ também é explícita (`remote=true`) e nunca é usada como typeahead.
 Para TBCA, cada busca remota consulta no máximo `TBCA_DETAIL_LIMIT` detalhes
 (5 por padrão), com no máximo 3 requisições simultâneas e timeout de 2,5 segundos
 por requisição; o timeout global usa `PROVIDER_TIMEOUT_SECONDS`.
+FatSecret é desabilitado quando `FATSECRET_CLIENT_ID` ou `FATSECRET_CLIENT_SECRET` está vazio;
+para habilitá-lo, inclua `fatsecret` em `FOOD_PROVIDER_SOURCES`.
+Quando habilitado, seus nutrientes são cacheados por no máximo 24 horas e removidos pelo
+workflow diário `purge-cache.yml`; o workflow só funciona depois que o secret `DATABASE_URL`
+for cadastrado no GitHub.
 Os alimentos carregam metadados como `source_version`, `attribution`, `barcode`, `locale`,
 `fetched_at`, `expires_at`, `archived_at` e nutrientes extras; alimentos arquivados ou com
 cache expirado ficam fora da busca sem invalidar entradas já registradas.

@@ -187,6 +187,11 @@ configure `OFF_USER_AGENT`, `PROVIDER_TIMEOUT_SECONDS` e `TBCA_DETAIL_LIMIT`.
 `GET /api/foods/barcode/{barcode}` e a tool `lookup_food_barcode` consultam primeiro o cache
 local e depois o Open Food Facts por código de barras; a busca textual remota continua opt-in
 e nunca deve ser usada como typeahead.
+FatSecret é opcional e exige `FATSECRET_CLIENT_ID`, `FATSECRET_CLIENT_SECRET` e
+`FOOD_PROVIDER_SOURCES=fatsecret`; `FATSECRET_DETAIL_LIMIT` limita os detalhes por busca.
+O cache de nutrientes expira em 24 horas e é removido diariamente por
+`.github/workflows/purge-cache.yml`, que depende do secret `DATABASE_URL` configurado no
+GitHub.
 Licenças, atribuições, limites e decisões para todas as fontes estão em
 [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md).
 
@@ -200,7 +205,9 @@ Licenças, atribuições, limites e decisões para todas as fontes estão em
   no asyncpg é usado por causa do pgbouncer.
 - Env vars na Vercel: `DATABASE_URL`, `APP_ENV`, `DEFAULT_TIMEZONE`, `LOG_LEVEL`,
   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ALLOWED_EMAILS`, `OAUTH_REQUIRE_CONSENT`,
-  `FOOD_PROVIDER_SOURCES`, `USDA_FDC_API_KEY` e `OFF_USER_AGENT`.
+  `FOOD_PROVIDER_SOURCES`, `USDA_FDC_API_KEY`, `OFF_USER_AGENT`, `PROVIDER_TIMEOUT_SECONDS`,
+  `TBCA_DETAIL_LIMIT`, `FATSECRET_CLIENT_ID`, `FATSECRET_CLIENT_SECRET` e
+  `FATSECRET_DETAIL_LIMIT`.
   `SERVERLESS` é detectado automaticamente quando a Vercel define `VERCEL`. Providers remotos
   futuros são habilitados por `FOOD_PROVIDER_SOURCES`.
 - Para habilitar deploy automático via Git, o proprietário deve adicionar a conexão do GitHub

@@ -2,6 +2,7 @@ from collections.abc import Callable
 
 from app.config import Settings, get_settings
 from app.providers.base import FoodProvider
+from app.providers.fatsecret import fatsecret_factory
 from app.providers.off import off_factory
 from app.providers.tbca import tbca_factory
 from app.providers.usda import usda_factory
@@ -18,6 +19,7 @@ SOURCE_PRIORITY: dict[str | None, int] = {
 ProviderFactory = Callable[[Settings], FoodProvider | None]
 
 _provider_factories: dict[str, ProviderFactory] = {
+    "fatsecret": fatsecret_factory,
     "off": off_factory,
     "tbca": tbca_factory,
     "usda": usda_factory,

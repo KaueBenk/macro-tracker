@@ -10,7 +10,7 @@ from app.config import Settings
 from app.db import SessionLocal
 from app.models import Food
 from app.providers.base import ProviderError, ProviderFood
-from app.providers.tbca import TBCA_ATTRIBUTION, TBCAProvider
+from app.providers.tbca import TBCA_ATTRIBUTION, TBCAProvider, _parse_number
 from app.services import food_search as food_search_service
 from app.services.food_search import search_foods
 from tests.conftest import create_identity
@@ -54,6 +54,11 @@ DETAIL_HTML = """
 
 def _transport(handler: object) -> httpx.MockTransport:
     return httpx.MockTransport(handler)  # type: ignore[arg-type]
+
+
+def test_tbca_number_parser_preserves_decimal_points() -> None:
+    assert _parse_number("5.84") == pytest.approx(5.84)
+    assert _parse_number("1.234,56") == pytest.approx(1234.56)
 
 
 @pytest.mark.asyncio
