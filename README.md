@@ -30,7 +30,8 @@ O `.env.example` usa:
 | `GOOGLE_CLIENT_SECRET` | Client secret OAuth do Google (produção) | — |
 | `ALLOWED_EMAILS` | E-mails permitidos para criar novas contas, separados por vírgula | — |
 | `OAUTH_REQUIRE_CONSENT` | Exibe a tela de consentimento após o login | `true` |
-| `FOOD_PROVIDER_SOURCES` | Providers remotos habilitados, separados por vírgula (nenhum na P1) | — |
+| `FOOD_PROVIDER_SOURCES` | Providers remotos habilitados, separados por vírgula | `usda` |
+| `USDA_FDC_API_KEY` | Chave grátis do USDA FoodData Central obtida em api.data.gov | — |
 
 Crie um usuário e um token (o token é impresso uma única vez):
 
@@ -56,8 +57,14 @@ para importá-lo ou atualizá-lo no banco, use `uv run python scripts/import_tac
 (ou `--dry-run`).
 
 As licenças e decisões de integração das fontes TACO, TBCA, Open Food Facts, USDA FoodData
-Central e FatSecret estão em [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md). A camada de
-providers está preparada para fontes remotas futuras, mas a P1 não habilita nenhum provider.
+Central e FatSecret estão em [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md). Para habilitar o
+provider USDA, obtenha uma chave grátis em [api.data.gov](https://api.data.gov/), configure
+`USDA_FDC_API_KEY` e use `FOOD_PROVIDER_SOURCES=usda`. A busca remota é opt-in com
+`GET /api/foods?search=arroz&remote=true`; sem `remote=true`, nenhuma quota externa é consumida.
+Cada provider remoto tem timeout de 3 segundos; falhas são ignoradas para devolver resultados
+parciais. Os resultados USDA são cacheados como alimentos globais porque CC0 permite cache
+indefinido; por isso o TTL fica `NULL` para USDA (o parâmetro existe para fontes futuras como
+FatSecret).
 Os alimentos carregam metadados como `source_version`, `attribution`, `barcode`, `locale`,
 `fetched_at`, `expires_at`, `archived_at` e nutrientes extras; alimentos arquivados ou com
 cache expirado ficam fora da busca sem invalidar entradas já registradas.

@@ -1,11 +1,17 @@
+import asyncio
+import logging
 from collections.abc import Sequence
 
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Food, User
-from app.providers.registry import SOURCE_PRIORITY
+from app.providers.base import FoodProvider, ProviderError, ProviderFood
+from app.providers.registry import SOURCE_PRIORITY, get_enabled_providers
+from app.services.food_cache import upsert_provider_foods
 from app.text import normalize_search_text, search_terms
+
+logger = logging.getLogger(__name__)
 
 
 async def search_foods(
@@ -15,7 +21,43 @@ async def search_foods(
     query: str,
     limit: int,
     sources: Sequence[str] | None = None,
+    remote: bool = False,
 ) -> list[Food]:
+    if remote and normalize_search_text(query):
+        providers = get_enabled_providers()
+        if sources is not None:
+            requested_sources = set(sources)
+            providers = {
+                source: provider
+                for source, provider in providers.items()
+                if source in requested_sources
+            }
+
+        async def fetch(provider_source: str, provider: FoodProvider) -> list[ProviderFood]:
+            try:
+                result = await asyncio.wait_for(provider.search(query, limit), timeout=3.0)
+                return result
+            except (ProviderError, TimeoutError) as exc:
+                logger.warning("Food provider %s unavailable: %s", provider_source, exc)
+            except Exception:
+                logger.warning("Food provider %s failed", provider_source, exc_info=True)
+            return []
+
+        remote_results = await asyncio.gather(
+            *(fetch(source, provider) for source, provider in providers.items()),
+            return_exceptions=True,
+        )
+        provider_foods: list[ProviderFood] = []
+        for remote_result in remote_results:
+            if isinstance(remote_result, BaseException):
+                logger.warning("Food provider search failed: %s", remote_result)
+            else:
+                provider_foods.extend(remote_result)
+        await upsert_provider_foods(
+            session,
+            provider_foods,
+        )
+
     statement = select(Food).where(
         (Food.user_id == user.id) | Food.user_id.is_(None),
         Food.archived_at.is_(None),
@@ -44,5 +86,5 @@ async def search_foods(
         func.length(Food.name),
         Food.name,
     ).limit(limit)
-    result = await session.execute(statement)
-    return list(result.scalars())
+    db_result = await session.execute(statement)
+    return list(db_result.scalars())

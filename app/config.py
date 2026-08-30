@@ -8,7 +8,7 @@ from mcp.server.auth.settings import (
     ClientRegistrationOptions,
     RevocationOptions,
 )
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -28,9 +28,17 @@ class Settings(BaseSettings):
     allowed_emails: str = ""
     oauth_require_consent: bool = True
     food_provider_sources: str = ""
+    usda_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("USDA_FDC_API_KEY", "USDA_API_KEY"),
+    )
     serverless: bool = Field(default_factory=_default_serverless)
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        populate_by_name=True,
+    )
 
     @field_validator("database_url", mode="before")
     @classmethod

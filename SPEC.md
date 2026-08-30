@@ -31,7 +31,7 @@ app/
     nutrition.py     # cálculo de macros por entrada e agregações diárias/por período
     food_search.py   # busca unificada, expiração e ranking por fonte/similaridade
   providers/
-    base.py registry.py # contrato e registro de providers de alimentos
+    base.py registry.py usda.py # contratos, registry e provider USDA
   routers/
     foods.py entries.py goals.py summary.py account.py
   mcp/
@@ -157,7 +157,7 @@ Tools (nomes e descrições em inglês, para o agente; erros retornam mensagem c
 | `log_food_entry` | `description?`, `food_id?`, `quantity_g?`, `meal?`, `logged_at?`, `kcal?`, `protein_g?`, `carbs_g?`, `fat_g?`, `fiber_g?`, `notes?` | entrada criada + resumo do dia |
 | `list_entries` | `date?` ou `from`/`to` | entradas com macros |
 | `delete_entry` | `entry_id` | ok |
-| `search_foods` | `query`, `limit?` | alimentos com macros por 100 g |
+| `search_foods` | `query`, `limit?`, `sources?`, `remote?` | alimentos com macros por 100 g |
 | `create_food` | `name`, `brand?`, macros por 100 g, `serving_label?`, `serving_grams?` | alimento criado |
 | `set_daily_goal` | `kcal`, `protein_g`, `carbs_g`, `fat_g`, `fiber_g?`, `effective_from?` | meta vigente |
 | `get_daily_progress` | `date?` | consumido / meta / restante / % por macro |
@@ -173,7 +173,13 @@ com `uv run --with openpyxl python scripts/build_taco_dataset.py` e importado co
 
 A fundação de providers está em `app/providers/`: `ProviderFood`, `FoodProvider`,
 `ProviderError`, um registry habilitável por `FOOD_PROVIDER_SOURCES` e a prioridade única
-`privado > taco > tbca > usda > off > fatsecret`. A P1 não implementa chamadas remotas.
+`privado > taco > tbca > usda > off > fatsecret`. A USDA FoodData Central é habilitada com
+`USDA_FDC_API_KEY` (chave grátis em api.data.gov) e `FOOD_PROVIDER_SOURCES=usda`.
+`remote=true` na busca REST ou MCP consulta fontes externas, pode levar alguns segundos e é
+opt-in; a busca padrão usa apenas o cache local. Resultados USDA são materializados como
+alimentos globais via cache-on-read, com TTL `NULL` porque CC0 permite cache indefinido.
+Cada provider remoto tem timeout de 3 segundos; falhas não derrubam a busca e os resultados
+válidos restantes são retornados.
 Licenças, atribuições, limites e decisões para todas as fontes estão em
 [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md).
 
@@ -186,7 +192,8 @@ Licenças, atribuições, limites e decisões para todas as fontes estão em
   pois scheme e parâmetros SSL são normalizados automaticamente. `statement_cache_size=0`
   no asyncpg é usado por causa do pgbouncer.
 - Env vars na Vercel: `DATABASE_URL`, `APP_ENV`, `DEFAULT_TIMEZONE`, `LOG_LEVEL`,
-  `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ALLOWED_EMAILS` e `OAUTH_REQUIRE_CONSENT`.
+  `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ALLOWED_EMAILS`, `OAUTH_REQUIRE_CONSENT`,
+  `FOOD_PROVIDER_SOURCES` e `USDA_FDC_API_KEY`.
   `SERVERLESS` é detectado automaticamente quando a Vercel define `VERCEL`. Providers remotos
   futuros são habilitados por `FOOD_PROVIDER_SOURCES`.
 - Para habilitar deploy automático via Git, o proprietário deve adicionar a conexão do GitHub

@@ -31,6 +31,7 @@ async def list_foods(
     search: str | None = None,
     limit: int = Query(default=50, ge=1, le=200),
     sources: list[str] | None = Query(default=None),
+    remote: bool = Query(default=False),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[Food]:
@@ -40,6 +41,7 @@ async def list_foods(
         query=search or "",
         limit=limit,
         sources=sources,
+        remote=remote,
     )
 
 

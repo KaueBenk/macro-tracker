@@ -263,6 +263,10 @@ async def search_foods(
         list[str] | None,
         Field(description="Optional source filters, such as taco or usda."),
     ] = None,
+    remote: Annotated[
+        bool,
+        Field(description="Query external food sources; this may take a few seconds."),
+    ] = False,
 ) -> str:
     """Search visible foods and return nutrition values per 100 g."""
     async with SessionLocal() as session:
@@ -276,6 +280,7 @@ async def search_foods(
                 query=query,
                 limit=limit,
                 sources=sources,
+                remote=remote,
             )
             return _json([FoodRead.model_validate(food).model_dump(mode="json") for food in foods])
         except Exception:

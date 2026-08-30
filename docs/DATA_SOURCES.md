@@ -9,7 +9,7 @@ where the source requires it and is displayed by food search responses.
 | TACO 4 | Non-commercial use with mandatory citation to NEPA/UNICAMP. | Versioned repository dump in `data/taco.json`; import as global foods. |
 | TBCA 7.3 | CC BY-NC-ND 4.0: no total or partial reproduction, commercial use, or alteration; mandatory citation. | Use only for this personal, non-commercial project; import directly into the private database without versioning or redistributing the data. |
 | Open Food Facts | Database ODbL, contents DbCL, images CC BY-SA; attribution and share-alike obligations apply when publishing the database. | API plus cache, primarily for barcodes; do not publish the database. Use the recommended API v3 and an identifying User-Agent. |
-| USDA FoodData Central | CC0 1.0; citation suggested. API requires a free api.data.gov key and allows 1,000 requests/hour/IP. | API integration planned for P2; indefinite cache is permitted. |
+| USDA FoodData Central | CC0 1.0; citation suggested. API requires a free api.data.gov key and allows 1,000 requests/hour/IP. | API integration in P2 with opt-in `remote=true`; materialize results as global foods and cache indefinitely (`expires_at = NULL`). |
 | FatSecret Basic | Free tier: 5,000 calls/day; US-only dataset; attribution required. Developer Terms prohibit caching user data over 24 hours except listed indefinitely storable IDs. | API integration planned for P5; nutrient rows expire after 24 hours and are purged by a job. The entry's macro snapshot is the user's own record. |
 
 ## TACO
@@ -61,7 +61,12 @@ Research Service. FoodData Central, 2019. fdc.nal.usda.gov”. Its API is
 <https://api.nal.usda.gov/fdc/v1> and requires a free api.data.gov key. The
 limit is 1,000 requests/hour/IP; exceeding it blocks the key for one hour.
 Indefinite caching is allowed. Nutrient IDs to convert are 208 (kcal), 203
-(protein), 204 (fat), and 205 (carbohydrate). The provider is planned for P2.
+(protein), 204 (fat), and 205 (carbohydrate). In P2, enable it with
+`USDA_FDC_API_KEY` and `FOOD_PROVIDER_SOURCES=usda`; `remote=true` explicitly
+opts into the external request. The cache-on-read materializes the response as
+a global `Food`, and USDA rows use `expires_at = NULL` because CC0 permits
+indefinite caching. The provider never uses `labelNutrients`, which are
+per-serving values rather than the required per-100-g values.
 
 ## FatSecret
 
