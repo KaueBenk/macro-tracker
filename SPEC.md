@@ -180,9 +180,10 @@ A fundação de providers está em `app/providers/`: `ProviderFood`, `FoodProvid
 `remote=true` na busca REST ou MCP consulta fontes externas, pode levar alguns segundos e é
 opt-in; a busca padrão usa apenas o cache local. Resultados USDA são materializados como
 alimentos globais via cache-on-read, com TTL `NULL` porque CC0 permite cache indefinido.
-Cada provider remoto tem timeout de 3 segundos; falhas não derrubam a busca e os resultados
+Cada provider remoto usa `PROVIDER_TIMEOUT_SECONDS` (5 segundos por padrão); falhas não derrubam a busca e os resultados
 válidos restantes são retornados.
-O Open Food Facts é habilitado com `FOOD_PROVIDER_SOURCES=usda,off` e `OFF_USER_AGENT`.
+O Open Food Facts e a TBCA são habilitados com `FOOD_PROVIDER_SOURCES=usda,off,tbca`;
+configure `OFF_USER_AGENT`, `PROVIDER_TIMEOUT_SECONDS` e `TBCA_DETAIL_LIMIT`.
 `GET /api/foods/barcode/{barcode}` e a tool `lookup_food_barcode` consultam primeiro o cache
 local e depois o Open Food Facts por código de barras; a busca textual remota continua opt-in
 e nunca deve ser usada como typeahead.

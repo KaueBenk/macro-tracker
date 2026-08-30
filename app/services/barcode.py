@@ -5,6 +5,7 @@ import re
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.models import Food, User
 from app.providers.base import BarcodeProvider, ProviderError, ProviderFood
 from app.providers.registry import SOURCE_PRIORITY, get_enabled_providers
@@ -39,7 +40,10 @@ async def lookup_barcode(
 
     async def fetch(provider_source: str, provider: BarcodeProvider) -> ProviderFood | None:
         try:
-            return await asyncio.wait_for(provider.fetch_barcode(normalized), timeout=3.0)
+            return await asyncio.wait_for(
+                provider.fetch_barcode(normalized),
+                timeout=get_settings().provider_timeout_seconds,
+            )
         except (ProviderError, TimeoutError) as exc:
             logger.warning("Barcode provider %s unavailable: %s", provider_source, exc)
         except Exception:

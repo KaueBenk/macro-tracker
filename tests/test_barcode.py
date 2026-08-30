@@ -4,6 +4,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
+from app.config import Settings
 from app.db import SessionLocal
 from app.models import Food
 from app.providers.base import ProviderFood
@@ -92,6 +93,11 @@ async def test_lookup_barcode_timeout_is_degraded(
     user, _ = await create_identity("barcode-timeout@example.com")
     provider = FakeBarcodeProvider(_provider_food(), delay=3.2)
     monkeypatch.setattr(barcode_service, "get_enabled_providers", lambda: {"off": provider})
+    monkeypatch.setattr(
+        barcode_service,
+        "get_settings",
+        lambda: Settings(provider_timeout_seconds=0.01),
+    )
     async with SessionLocal() as session:
         result = await lookup_barcode(session, user=user, barcode="7891234567890")
     assert result is None

@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.models import Food, User
 from app.providers.base import FoodProvider, ProviderError, ProviderFood
 from app.providers.registry import SOURCE_PRIORITY, get_enabled_providers
@@ -35,7 +36,10 @@ async def search_foods(
 
         async def fetch(provider_source: str, provider: FoodProvider) -> list[ProviderFood]:
             try:
-                result = await asyncio.wait_for(provider.search(query, limit), timeout=3.0)
+                result = await asyncio.wait_for(
+                    provider.search(query, limit),
+                    timeout=get_settings().provider_timeout_seconds,
+                )
                 return result
             except (ProviderError, TimeoutError) as exc:
                 logger.warning("Food provider %s unavailable: %s", provider_source, exc)

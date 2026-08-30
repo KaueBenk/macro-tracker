@@ -7,7 +7,7 @@ where the source requires it and is displayed by food search responses.
 | Source | License / limits | Decision |
 | --- | --- | --- |
 | TACO 4 | Non-commercial use with mandatory citation to NEPA/UNICAMP. | Versioned repository dump in `data/taco.json`; import as global foods. |
-| TBCA 7.3 | CC BY-NC-ND 4.0: no total or partial reproduction, commercial use, or alteration; mandatory citation. | Use only for this personal, non-commercial project; import directly into the private database without versioning or redistributing the data. |
+| TBCA 7.3 | CC BY-NC-ND 4.0: no total or partial reproduction, commercial use, or alteration; mandatory citation. | Use only for this personal, non-commercial project; query on demand and write results directly into the private database without versioning or redistributing the data. |
 | Open Food Facts | Database ODbL, contents DbCL, images CC BY-SA; attribution and share-alike obligations apply when publishing the database. | P3 API plus cache, primarily for barcodes; do not publish the database. Use v3 for products, v2 for search, and an identifying User-Agent. |
 | USDA FoodData Central | CC0 1.0; citation suggested. API requires a free api.data.gov key and allows 1,000 requests/hour/IP. | API integration in P2 with opt-in `remote=true`; materialize results as global foods and cache indefinitely (`expires_at = NULL`). |
 | FatSecret Basic | Free tier: 5,000 calls/day; US-only dataset; attribution required. Developer Terms prohibit caching user data over 24 hours except listed indefinitely storable IDs. | API integration planned for P5; nutrient rows expire after 24 hours and are purged by a job. The entry's macro snapshot is the user's own record. |
@@ -39,7 +39,17 @@ There is no official API or dump for download. Because this is a personal,
 non-commercial project, the decision is to use TBCA by writing data directly
 to the user's private database. TBCA data is not versioned in this repository
 and is not redistributed. The citation above is displayed with each food. The
-project cannot be commercialized while the TBCA dataset is active.
+project cannot be commercialized while the TBCA dataset is active. The provider
+queries the site on demand only when the user explicitly requests a remote
+search, materializes returned foods privately with an indefinite cache, and
+never crawls the complete database. No TBCA data is included in this repository;
+fixtures are synthetic markup and invented values only. This includes no bulk
+importer or repository dump. Each remote search fetches at most
+`TBCA_DETAIL_LIMIT` detail pages (default 5), with at most three detail
+requests in flight and a 2.5-second timeout per TBCA request. The global
+provider timeout is configurable with `PROVIDER_TIMEOUT_SECONDS` (5 seconds by
+default). Remote search is opt-in (`remote=true`) and must not be used as
+typeahead. Materialized TBCA foods use cache-on-read with `expires_at = NULL`.
 
 ## Open Food Facts
 
@@ -91,6 +101,8 @@ disabled through configuration if this interpretation is not acceptable.
 - Never use Open Food Facts search as typeahead; remote searches are explicit.
 - Never redistribute TBCA data, and do not commercialize the project while TBCA
   is active.
+- Use TBCA only on demand, never crawl the complete database, and display its
+  citation with every materialized food.
 - Purge expired FatSecret cache rows.
 - Keep source version, fetch time, expiry, and archival metadata with imported
   foods so stale upstream data can be excluded without breaking existing entries.

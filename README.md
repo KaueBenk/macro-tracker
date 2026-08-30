@@ -33,6 +33,8 @@ O `.env.example` usa:
 | `FOOD_PROVIDER_SOURCES` | Providers remotos habilitados, separados por vírgula | `usda` |
 | `USDA_FDC_API_KEY` | Chave grátis do USDA FoodData Central obtida em api.data.gov | — |
 | `OFF_USER_AGENT` | User-Agent exigido pelo Open Food Facts | `macro-tracker/0.1 (https://github.com/KaueBenk/macro-tracker)` |
+| `PROVIDER_TIMEOUT_SECONDS` | Timeout dos providers remotos | `5.0` |
+| `TBCA_DETAIL_LIMIT` | Máximo de detalhes TBCA por busca | `5` |
 
 Crie um usuário e um token (o token é impresso uma única vez):
 
@@ -62,14 +64,17 @@ Central e FatSecret estão em [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md). Pa
 provider USDA, obtenha uma chave grátis em [api.data.gov](https://api.data.gov/), configure
 `USDA_FDC_API_KEY` e use `FOOD_PROVIDER_SOURCES=usda`. A busca remota é opt-in com
 `GET /api/foods?search=arroz&remote=true`; sem `remote=true`, nenhuma quota externa é consumida.
-Cada provider remoto tem timeout de 3 segundos; falhas são ignoradas para devolver resultados
+Cada provider remoto usa `PROVIDER_TIMEOUT_SECONDS` (5 segundos por padrão); falhas são ignoradas para devolver resultados
 parciais. Os resultados USDA são cacheados como alimentos globais porque CC0 permite cache
 indefinido; por isso o TTL fica `NULL` para USDA (o parâmetro existe para fontes futuras como
 FatSecret).
-Para habilitar também o Open Food Facts, use `FOOD_PROVIDER_SOURCES=usda,off` e configure
+Para habilitar Open Food Facts e TBCA, use `FOOD_PROVIDER_SOURCES=usda,off,tbca` e configure
 `OFF_USER_AGENT`. Use `GET /api/foods/barcode/{ean}` para consultar primeiro o cache local e,
 quando necessário, o produto por código de barras no Open Food Facts. A busca por nome remota
 também é explícita (`remote=true`) e nunca é usada como typeahead.
+Para TBCA, cada busca remota consulta no máximo `TBCA_DETAIL_LIMIT` detalhes
+(5 por padrão), com no máximo 3 requisições simultâneas e timeout de 2,5 segundos
+por requisição; o timeout global usa `PROVIDER_TIMEOUT_SECONDS`.
 Os alimentos carregam metadados como `source_version`, `attribution`, `barcode`, `locale`,
 `fetched_at`, `expires_at`, `archived_at` e nutrientes extras; alimentos arquivados ou com
 cache expirado ficam fora da busca sem invalidar entradas já registradas.
