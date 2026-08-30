@@ -29,6 +29,9 @@ app/
   cli.py             # `python -m app.cli` (criar usuário/token)
   services/
     nutrition.py     # cálculo de macros por entrada e agregações diárias/por período
+    food_search.py   # busca unificada, expiração e ranking por fonte/similaridade
+  providers/
+    base.py registry.py # contrato e registro de providers de alimentos
   routers/
     foods.py entries.py goals.py summary.py account.py
   mcp/
@@ -54,7 +57,10 @@ Todas as tabelas com `id UUID PK default uuid4`, `created_at`/`updated_at timest
   nutrientes **por 100 g**: `kcal`, `protein_g`, `carbs_g`, `fat_g`, `fiber_g` nullable,
   `serving_label` nullable, `serving_grams` nullable, `source`, `source_ref`, `category` e
   `search_text`. `source`/`source_ref` identificam datasets globais e são protegidos contra
-  duplicação; a API não permite que o usuário os defina.
+  duplicação; a API não permite que o usuário os defina. `source_version`, `attribution`,
+  `barcode`, `locale`, `fetched_at`, `expires_at`, `archived_at` e `nutrients` guardam
+  proveniência, cache e nutrientes extras. `dataset_versions` registra versões importadas,
+  contagem, checksum e observações.
   Unique: `(user_id, lower(name), coalesce(brand,''))`
 - `entries`: `user_id FK`, `logged_at timestamptz` (UTC), `meal` enum
   (`breakfast|lunch|dinner|snack|other`), `food_id FK nullable`, `description` nullable,
@@ -118,8 +124,9 @@ a emissão do código e fica vinculada ao navegador do login por um cookie segur
 ## REST API (prefixo `/api`)
 
 - `GET /health` — sem auth; `{"status":"ok"}` (não toca no banco)
-- `POST /api/foods`, `GET /api/foods?search=&limit=` (busca sem acentos, com todos os termos
-  exigidos, por nome/brand/categoria; retorna alimentos do usuário + globais), `GET/PATCH/DELETE
+- `POST /api/foods`, `GET /api/foods?search=&limit=&sources=` (busca sem acentos, com todos os
+  termos exigidos, por nome/brand/categoria; retorna alimentos do usuário + globais, ranqueados
+  por prioridade de fonte e similaridade), `GET/PATCH/DELETE
   /api/foods/{id}`
 - `POST /api/entries` (body: `logged_at?` default now, `meal`, `food_id?`, `description?`,
   `quantity_g?`, macros opcionais), `GET /api/entries?date=` ou `?from=&to=`,
@@ -164,6 +171,12 @@ citação obrigatórias à fonte. O dataset versionado em `data/taco.json` pode 
 com `uv run --with openpyxl python scripts/build_taco_dataset.py` e importado com
 `uv run python scripts/import_taco.py` (ou `--dry-run`).
 
+A fundação de providers está em `app/providers/`: `ProviderFood`, `FoodProvider`,
+`ProviderError`, um registry habilitável por `FOOD_PROVIDER_SOURCES` e a prioridade única
+`privado > taco > tbca > usda > off > fatsecret`. A P1 não implementa chamadas remotas.
+Licenças, atribuições, limites e decisões para todas as fontes estão em
+[`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md).
+
 ## Deploy / infra
 
 - A Vercel detecta o preset FastAPI automaticamente e serve `app/main.py:app`; não há
@@ -174,7 +187,8 @@ com `uv run --with openpyxl python scripts/build_taco_dataset.py` e importado co
   no asyncpg é usado por causa do pgbouncer.
 - Env vars na Vercel: `DATABASE_URL`, `APP_ENV`, `DEFAULT_TIMEZONE`, `LOG_LEVEL`,
   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ALLOWED_EMAILS` e `OAUTH_REQUIRE_CONSENT`.
-  `SERVERLESS` é detectado automaticamente quando a Vercel define `VERCEL`.
+  `SERVERLESS` é detectado automaticamente quando a Vercel define `VERCEL`. Providers remotos
+  futuros são habilitados por `FOOD_PROVIDER_SOURCES`.
 - Para habilitar deploy automático via Git, o proprietário deve adicionar a conexão do GitHub
   em **Vercel > Account Settings > Login Connections** antes de executar `vercel git connect`.
 - Migrations em prod: primeiro aplique localmente com

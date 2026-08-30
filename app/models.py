@@ -9,11 +9,13 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Index,
+    Integer,
     Numeric,
     String,
     Text,
     UniqueConstraint,
     event,
+    func,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -86,6 +88,18 @@ class Food(TimestampMixin, Base):
             unique=True,
             postgresql_where=text("source is not null"),
         ),
+        Index("ix_food_barcode", "source", "barcode"),
+        Index(
+            "ix_food_expires_at",
+            "expires_at",
+            postgresql_where=text("expires_at is not null"),
+        ),
+        Index(
+            "ix_food_search_text_trgm",
+            "search_text",
+            postgresql_using="gin",
+            postgresql_ops={"search_text": "gin_trgm_ops"},
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -105,6 +119,14 @@ class Food(TimestampMixin, Base):
     source_ref: Mapped[str | None] = mapped_column(String(50))
     category: Mapped[str | None] = mapped_column(String(100))
     search_text: Mapped[str | None] = mapped_column(Text)
+    source_version: Mapped[str | None] = mapped_column(Text)
+    attribution: Mapped[str | None] = mapped_column(Text)
+    barcode: Mapped[str | None] = mapped_column(Text)
+    locale: Mapped[str | None] = mapped_column(Text)
+    fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    nutrients: Mapped[dict[str, float] | None] = mapped_column(JSONB)
     user: Mapped[User | None] = relationship(back_populates="foods")
 
 
@@ -112,6 +134,28 @@ class Food(TimestampMixin, Base):
 @event.listens_for(Food, "before_update")
 def update_food_search_text(_: Mapper[Food], __: Connection, target: Food) -> None:
     target.search_text = normalize_search_text(target.name, target.brand, target.category)
+
+
+class DatasetVersion(Base):
+    __tablename__ = "dataset_versions"
+    __table_args__ = (
+        UniqueConstraint(
+            "source",
+            "version",
+            "imported_at",
+            name="uq_dataset_version_source_version_imported_at",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source: Mapped[str] = mapped_column(Text)
+    version: Mapped[str] = mapped_column(Text)
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    record_count: Mapped[int] = mapped_column(Integer)
+    checksum: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
 
 
 class Meal(str, enum.Enum):

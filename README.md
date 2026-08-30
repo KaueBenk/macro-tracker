@@ -30,6 +30,7 @@ O `.env.example` usa:
 | `GOOGLE_CLIENT_SECRET` | Client secret OAuth do Google (produção) | — |
 | `ALLOWED_EMAILS` | E-mails permitidos para criar novas contas, separados por vírgula | — |
 | `OAUTH_REQUIRE_CONSENT` | Exibe a tela de consentimento após o login | `true` |
+| `FOOD_PROVIDER_SOURCES` | Providers remotos habilitados, separados por vírgula (nenhum na P1) | — |
 
 Crie um usuário e um token (o token é impresso uma única vez):
 
@@ -53,6 +54,13 @@ e `arroz integral`; alimentos cadastrados pelo usuário aparecem antes dos globa
 Para reconstruir o dataset, use `uv run --with openpyxl python scripts/build_taco_dataset.py`;
 para importá-lo ou atualizá-lo no banco, use `uv run python scripts/import_taco.py`
 (ou `--dry-run`).
+
+As licenças e decisões de integração das fontes TACO, TBCA, Open Food Facts, USDA FoodData
+Central e FatSecret estão em [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md). A camada de
+providers está preparada para fontes remotas futuras, mas a P1 não habilita nenhum provider.
+Os alimentos carregam metadados como `source_version`, `attribution`, `barcode`, `locale`,
+`fetched_at`, `expires_at`, `archived_at` e nutrientes extras; alimentos arquivados ou com
+cache expirado ficam fora da busca sem invalidar entradas já registradas.
 
 A API fica em `http://localhost:8000`; `GET /health` não exige autenticação.
 Os endpoints REST autenticados usam `Authorization: Bearer <token>`, por exemplo:

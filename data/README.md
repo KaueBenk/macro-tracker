@@ -11,6 +11,9 @@ iogurte sabor abacaxi, leite de vaca desnatado UHT, leite de vaca integral, sal 
 sal grosso e coco verde cru. Quando as calorias eram conhecidas, macros não quantificados
 foram representados como `0`; fibra continua `null` quando não quantificada.
 
+A atribuição exibida junto aos alimentos é: `Tabela Brasileira de Composição de Alimentos
+(TACO), 4ª edição. NEPA/UNICAMP.`
+
 Para reconstruir o arquivo a partir da planilha oficial, use:
 
 ```bash

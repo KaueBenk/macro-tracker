@@ -45,6 +45,11 @@ class FoodRead(FoodBase):
     user_id: uuid.UUID | None
     source: str | None
     source_ref: str | None
+    source_version: str | None
+    attribution: str | None
+    barcode: str | None
+    locale: str | None
+    nutrients: dict[str, float] | None
     created_at: datetime
     updated_at: datetime
 

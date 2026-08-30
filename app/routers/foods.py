@@ -1,14 +1,14 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.models import Food, User
 from app.schemas import FoodCreate, FoodRead, FoodUpdate
 from app.security import get_current_user
-from app.text import search_terms
+from app.services.food_search import search_foods
 
 router = APIRouter(prefix="/foods", tags=["foods"])
 
@@ -30,18 +30,17 @@ async def create_food(
 async def list_foods(
     search: str | None = None,
     limit: int = Query(default=50, ge=1, le=200),
+    sources: list[str] | None = Query(default=None),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[Food]:
-    query = select(Food).where(or_(Food.user_id == user.id, Food.user_id.is_(None)))
-    terms = search_terms(search or "")
-    for term in terms:
-        escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        query = query.where(Food.search_text.like(f"%{escaped}%", escape="\\"))
-    result = await session.execute(
-        query.order_by(Food.user_id.is_(None), func.length(Food.name), Food.name).limit(limit)
+    return await search_foods(
+        session,
+        user=user,
+        query=search or "",
+        limit=limit,
+        sources=sources,
     )
-    return list(result.scalars())
 
 
 @router.get("/{food_id}", response_model=FoodRead)

@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     allowed_emails: str = ""
     oauth_require_consent: bool = True
+    food_provider_sources: str = ""
     serverless: bool = Field(default_factory=_default_serverless)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

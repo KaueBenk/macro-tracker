@@ -10,6 +10,7 @@ from app.db import SessionLocal, engine
 from app.main import app
 from app.models import (
     ApiToken,
+    DatasetVersion,
     Entry,
     Food,
     Goal,
@@ -26,6 +27,7 @@ async def clean_database() -> AsyncIterator[None]:
     await engine.dispose()
     async with SessionLocal() as session:
         await session.execute(delete(OAuthPendingAuth))
+        await session.execute(delete(DatasetVersion))
         await session.execute(delete(OAuthAuthCode))
         await session.execute(delete(OAuthToken))
         await session.execute(delete(OAuthClient))
@@ -38,6 +40,7 @@ async def clean_database() -> AsyncIterator[None]:
     yield
     async with SessionLocal() as session:
         await session.execute(delete(OAuthPendingAuth))
+        await session.execute(delete(DatasetVersion))
         await session.execute(delete(OAuthAuthCode))
         await session.execute(delete(OAuthToken))
         await session.execute(delete(OAuthClient))

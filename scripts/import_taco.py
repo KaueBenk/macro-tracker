@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import TypedDict
@@ -12,9 +14,11 @@ from typing import TypedDict
 from sqlalchemy import select
 
 from app.db import SessionLocal
-from app.models import Food
+from app.models import DatasetVersion, Food
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "taco.json"
+TACO_ATTRIBUTION = "Tabela Brasileira de Composição de Alimentos (TACO), 4ª edição. NEPA/UNICAMP."
+TACO_SOURCE_VERSION = "TACO 4"
 
 
 class TacoRecord(TypedDict):
@@ -84,8 +88,11 @@ def _optional_number(item: dict[object, object], key: str) -> float | None:
 async def import_taco(path: Path = DATA_PATH, dry_run: bool = False) -> tuple[int, int]:
     inserted = 0
     updated = 0
+    raw_data = path.read_bytes()
+    records = _records(path)
+    fetched_at = datetime.now(UTC)
     async with SessionLocal() as session:
-        for record in _records(path):
+        for record in records:
             result = await session.execute(
                 select(Food).where(
                     Food.source == "taco",
@@ -96,6 +103,10 @@ async def import_taco(path: Path = DATA_PATH, dry_run: bool = False) -> tuple[in
             values = {
                 "name": record["name"],
                 "category": record["category"],
+                "source_version": TACO_SOURCE_VERSION,
+                "attribution": TACO_ATTRIBUTION,
+                "locale": "pt-BR",
+                "fetched_at": fetched_at,
                 "kcal": Decimal(str(record["kcal"])),
                 "protein_g": Decimal(str(record["protein_g"])),
                 "carbs_g": Decimal(str(record["carbs_g"])),
@@ -119,6 +130,15 @@ async def import_taco(path: Path = DATA_PATH, dry_run: bool = False) -> tuple[in
                     setattr(food, key, value)
                 updated += 1
             await session.flush()
+        session.add(
+            DatasetVersion(
+                source="taco",
+                version=TACO_SOURCE_VERSION,
+                record_count=len(records),
+                checksum=hashlib.sha256(raw_data).hexdigest(),
+                notes=str(path),
+            )
+        )
         if dry_run:
             await session.rollback()
         else:

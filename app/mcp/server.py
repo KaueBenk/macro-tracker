@@ -11,7 +11,7 @@ from mcp.server.auth.routes import build_resource_metadata_url
 from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import Field
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.applications import Starlette
 from starlette.types import ASGIApp
@@ -24,8 +24,8 @@ from app.oauth.provider import DbOAuthProvider
 from app.oauth.verifier import CompositeTokenVerifier
 from app.routers.summary import make_daily_summary
 from app.schemas import EntryRead, FoodRead, GoalRead
+from app.services.food_search import search_foods as search_foods_service
 from app.services.nutrition import MacroValues, day_bounds, resolve_entry_macros
-from app.text import search_terms
 
 oauth_provider = DbOAuthProvider()
 token_verifier = CompositeTokenVerifier(oauth_provider)
@@ -257,8 +257,12 @@ async def delete_entry(
 
 @server.tool()
 async def search_foods(
-    query: Annotated[str, Field(description="Case-insensitive food name or brand search text.")],
+    query: Annotated[str, Field(description="Case-insensitive food search text.")],
     limit: Annotated[int, Field(ge=1, le=200, description="Maximum foods to return.")] = 50,
+    sources: Annotated[
+        list[str] | None,
+        Field(description="Optional source filters, such as taco or usda."),
+    ] = None,
 ) -> str:
     """Search visible foods and return nutrition values per 100 g."""
     async with SessionLocal() as session:
@@ -266,18 +270,14 @@ async def search_foods(
         if user is None:
             return "Error: authenticated user was not found."
         try:
-            statement = select(Food).where((Food.user_id == user.id) | Food.user_id.is_(None))
-            for term in search_terms(query):
-                escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-                statement = statement.where(Food.search_text.like(f"%{escaped}%", escape="\\"))
-            result = await session.execute(
-                statement.order_by(Food.user_id.is_(None), func.length(Food.name), Food.name).limit(
-                    limit
-                )
+            foods = await search_foods_service(
+                session,
+                user=user,
+                query=query,
+                limit=limit,
+                sources=sources,
             )
-            return _json(
-                [FoodRead.model_validate(food).model_dump(mode="json") for food in result.scalars()]
-            )
+            return _json([FoodRead.model_validate(food).model_dump(mode="json") for food in foods])
         except Exception:
             return "Error: could not search foods."
 

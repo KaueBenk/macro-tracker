@@ -2,10 +2,10 @@ import json
 from pathlib import Path
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import desc, select
 
 from app.db import SessionLocal
-from app.models import Food
+from app.models import DatasetVersion, Food
 from app.text import search_terms
 from scripts.import_taco import import_taco
 
@@ -50,5 +50,20 @@ async def test_taco_import_is_idempotent_and_updates_existing_rows(tmp_path: Pat
     async with SessionLocal() as session:
         result = await session.execute(select(Food).where(Food.source == "taco"))
         foods = list(result.scalars())
+        versions_result = await session.execute(
+            select(DatasetVersion).order_by(desc(DatasetVersion.imported_at))
+        )
+        versions = list(versions_result.scalars())
     assert len(foods) == 2
     assert next(food for food in foods if food.source_ref == "1").kcal == 80
+    assert len(versions) == 2
+    assert versions[0].source == "taco"
+    assert versions[0].version == "TACO 4"
+    assert versions[0].record_count == 2
+    assert versions[0].checksum
+    assert next(food for food in foods if food.source_ref == "1").source_version == "TACO 4"
+    assert next(food for food in foods if food.source_ref == "1").locale == "pt-BR"
+    assert (
+        next(food for food in foods if food.source_ref == "1").attribution
+        == "Tabela Brasileira de Composição de Alimentos (TACO), 4ª edição. NEPA/UNICAMP."
+    )
