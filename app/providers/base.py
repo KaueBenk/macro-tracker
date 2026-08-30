@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
@@ -29,6 +29,13 @@ class FoodProvider(Protocol):
     async def search(self, query: str, limit: int) -> list[ProviderFood]: ...
 
     async def fetch(self, source_ref: str) -> ProviderFood | None: ...
+
+
+@runtime_checkable
+class BarcodeProvider(Protocol):
+    source: str
+
+    async def fetch_barcode(self, barcode: str) -> ProviderFood | None: ...
 
 
 class ProviderError(Exception):

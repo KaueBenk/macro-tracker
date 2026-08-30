@@ -57,6 +57,8 @@ async def search_foods(
             session,
             provider_foods,
         )
+        if provider_foods:
+            await session.commit()
 
     statement = select(Food).where(
         (Food.user_id == user.id) | Food.user_id.is_(None),

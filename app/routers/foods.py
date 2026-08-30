@@ -8,6 +8,7 @@ from app.db import get_session
 from app.models import Food, User
 from app.schemas import FoodCreate, FoodRead, FoodUpdate
 from app.security import get_current_user
+from app.services.barcode import lookup_barcode
 from app.services.food_search import search_foods
 
 router = APIRouter(prefix="/foods", tags=["foods"])
@@ -43,6 +44,18 @@ async def list_foods(
         sources=sources,
         remote=remote,
     )
+
+
+@router.get("/barcode/{barcode}", response_model=FoodRead)
+async def get_food_by_barcode(
+    barcode: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> Food:
+    food = await lookup_barcode(session, user=user, barcode=barcode)
+    if food is None:
+        raise HTTPException(status_code=404, detail="Food not found")
+    return food
 
 
 @router.get("/{food_id}", response_model=FoodRead)

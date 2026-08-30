@@ -423,6 +423,7 @@ async def test_mcp_lists_tools_and_scopes_entries(client: AsyncClient) -> None:
             "list_entries",
             "delete_entry",
             "search_foods",
+            "lookup_food_barcode",
             "create_food",
             "set_daily_goal",
             "get_daily_progress",

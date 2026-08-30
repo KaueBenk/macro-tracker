@@ -152,6 +152,21 @@ async def test_usda_malformed_payload_and_network_error_are_provider_errors() ->
     with pytest.raises(ProviderError, match="foods list"):
         await malformed.search("beans", 5)
 
+    mixed = USDAProvider(
+        Settings(usda_api_key="test-key"),
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(
+                200,
+                json={"foods": [{"fdcId": 1}, _food_payload([_nutrient("208", 80)])]},
+            )
+        ),
+    )
+    foods = await mixed.search("beans", 5)
+    assert [food.source_ref for food in foods] == ["123"]
+
+    with pytest.raises(ProviderError):
+        await mixed.fetch("123")
+
     def network_failure(_: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("connection failed")
 
@@ -203,9 +218,11 @@ async def test_provider_food_cache_is_idempotent_and_preserves_user_food() -> No
     ]
     async with SessionLocal() as session:
         await upsert_provider_foods(session, provider_foods)
+        await session.commit()
     provider_foods[1].kcal = 90
     async with SessionLocal() as session:
         await upsert_provider_foods(session, provider_foods)
+        await session.commit()
         remote_count = await session.scalar(
             select(func.count(Food.id)).where(Food.source == "usda", Food.source_ref == "1")
         )
@@ -217,6 +234,23 @@ async def test_provider_food_cache_is_idempotent_and_preserves_user_food() -> No
     assert remote is not None and remote.kcal == 90
     assert remote.expires_at is None
     assert collision is not None and collision.name == "My private food"
+
+
+@pytest.mark.asyncio
+async def test_provider_food_cache_flush_can_be_rolled_back() -> None:
+    provider_food = _fake_food()
+    async with SessionLocal() as session:
+        await upsert_provider_foods(session, [provider_food])
+        assert (
+            await session.scalar(select(Food).where(Food.source_ref == provider_food.source_ref))
+            is not None
+        )
+        await session.rollback()
+    async with SessionLocal() as session:
+        assert (
+            await session.scalar(select(Food).where(Food.source_ref == provider_food.source_ref))
+            is None
+        )
 
 
 class FakeProvider:

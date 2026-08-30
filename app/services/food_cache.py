@@ -63,7 +63,7 @@ async def upsert_provider_foods(
         where=Food.user_id.is_(None),
     )
     await session.execute(statement)
-    await session.commit()
+    await session.flush()
 
     keys = list(unique_foods)
     result = await session.execute(

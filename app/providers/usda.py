@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from typing import Any
 
@@ -12,6 +13,7 @@ USDA_ATTRIBUTION = (
     "U.S. Department of Agriculture, Agricultural Research Service. "
     "FoodData Central, 2019. fdc.nal.usda.gov"
 )
+logger = logging.getLogger(__name__)
 
 
 class USDAProvider:
@@ -42,7 +44,16 @@ class USDAProvider:
             foods = payload.get("foods")
             if not isinstance(foods, list):
                 raise ProviderError("USDA response did not contain a foods list")
-            return [food for item in foods if (food := self._parse_food(item)) is not None]
+            parsed: list[ProviderFood] = []
+            for item in foods:
+                try:
+                    food = self._parse_food(item)
+                except ProviderError as exc:
+                    self._log_malformed_item(exc)
+                    continue
+                if food is not None:
+                    parsed.append(food)
+            return parsed
         except ProviderError:
             raise
         except Exception as exc:
@@ -57,6 +68,10 @@ class USDAProvider:
             raise
         except Exception as exc:
             raise ProviderError(f"USDA fetch failed: {exc}") from exc
+
+    @staticmethod
+    def _log_malformed_item(error: ProviderError) -> None:
+        logger.debug("Ignoring malformed USDA food item: %s", error)
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
         params = {"api_key": self.api_key}

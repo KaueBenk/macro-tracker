@@ -32,6 +32,7 @@ O `.env.example` usa:
 | `OAUTH_REQUIRE_CONSENT` | Exibe a tela de consentimento após o login | `true` |
 | `FOOD_PROVIDER_SOURCES` | Providers remotos habilitados, separados por vírgula | `usda` |
 | `USDA_FDC_API_KEY` | Chave grátis do USDA FoodData Central obtida em api.data.gov | — |
+| `OFF_USER_AGENT` | User-Agent exigido pelo Open Food Facts | `macro-tracker/0.1 (https://github.com/KaueBenk/macro-tracker)` |
 
 Crie um usuário e um token (o token é impresso uma única vez):
 
@@ -65,6 +66,10 @@ Cada provider remoto tem timeout de 3 segundos; falhas são ignoradas para devol
 parciais. Os resultados USDA são cacheados como alimentos globais porque CC0 permite cache
 indefinido; por isso o TTL fica `NULL` para USDA (o parâmetro existe para fontes futuras como
 FatSecret).
+Para habilitar também o Open Food Facts, use `FOOD_PROVIDER_SOURCES=usda,off` e configure
+`OFF_USER_AGENT`. Use `GET /api/foods/barcode/{ean}` para consultar primeiro o cache local e,
+quando necessário, o produto por código de barras no Open Food Facts. A busca por nome remota
+também é explícita (`remote=true`) e nunca é usada como typeahead.
 Os alimentos carregam metadados como `source_version`, `attribution`, `barcode`, `locale`,
 `fetched_at`, `expires_at`, `archived_at` e nutrientes extras; alimentos arquivados ou com
 cache expirado ficam fora da busca sem invalidar entradas já registradas.

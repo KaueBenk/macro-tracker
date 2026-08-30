@@ -32,6 +32,7 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("USDA_FDC_API_KEY", "USDA_API_KEY"),
     )
+    off_user_agent: str = "macro-tracker/0.1 (https://github.com/KaueBenk/macro-tracker)"
     serverless: bool = Field(default_factory=_default_serverless)
 
     model_config = SettingsConfigDict(

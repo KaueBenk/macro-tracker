@@ -30,8 +30,9 @@ app/
   services/
     nutrition.py     # cálculo de macros por entrada e agregações diárias/por período
     food_search.py   # busca unificada, expiração e ranking por fonte/similaridade
+    barcode.py       # lookup local/remoto por código de barras
   providers/
-    base.py registry.py usda.py # contratos, registry e provider USDA
+    base.py registry.py usda.py off.py # contratos, registry e providers remotos
   routers/
     foods.py entries.py goals.py summary.py account.py
   mcp/
@@ -158,6 +159,7 @@ Tools (nomes e descrições em inglês, para o agente; erros retornam mensagem c
 | `list_entries` | `date?` ou `from`/`to` | entradas com macros |
 | `delete_entry` | `entry_id` | ok |
 | `search_foods` | `query`, `limit?`, `sources?`, `remote?` | alimentos com macros por 100 g |
+| `lookup_food_barcode` | `barcode` | alimento por EAN/UPC, ou not found |
 | `create_food` | `name`, `brand?`, macros por 100 g, `serving_label?`, `serving_grams?` | alimento criado |
 | `set_daily_goal` | `kcal`, `protein_g`, `carbs_g`, `fat_g`, `fiber_g?`, `effective_from?` | meta vigente |
 | `get_daily_progress` | `date?` | consumido / meta / restante / % por macro |
@@ -180,6 +182,10 @@ opt-in; a busca padrão usa apenas o cache local. Resultados USDA são materiali
 alimentos globais via cache-on-read, com TTL `NULL` porque CC0 permite cache indefinido.
 Cada provider remoto tem timeout de 3 segundos; falhas não derrubam a busca e os resultados
 válidos restantes são retornados.
+O Open Food Facts é habilitado com `FOOD_PROVIDER_SOURCES=usda,off` e `OFF_USER_AGENT`.
+`GET /api/foods/barcode/{barcode}` e a tool `lookup_food_barcode` consultam primeiro o cache
+local e depois o Open Food Facts por código de barras; a busca textual remota continua opt-in
+e nunca deve ser usada como typeahead.
 Licenças, atribuições, limites e decisões para todas as fontes estão em
 [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md).
 
@@ -193,7 +199,7 @@ Licenças, atribuições, limites e decisões para todas as fontes estão em
   no asyncpg é usado por causa do pgbouncer.
 - Env vars na Vercel: `DATABASE_URL`, `APP_ENV`, `DEFAULT_TIMEZONE`, `LOG_LEVEL`,
   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ALLOWED_EMAILS`, `OAUTH_REQUIRE_CONSENT`,
-  `FOOD_PROVIDER_SOURCES` e `USDA_FDC_API_KEY`.
+  `FOOD_PROVIDER_SOURCES`, `USDA_FDC_API_KEY` e `OFF_USER_AGENT`.
   `SERVERLESS` é detectado automaticamente quando a Vercel define `VERCEL`. Providers remotos
   futuros são habilitados por `FOOD_PROVIDER_SOURCES`.
 - Para habilitar deploy automático via Git, o proprietário deve adicionar a conexão do GitHub

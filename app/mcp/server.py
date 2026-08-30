@@ -24,6 +24,7 @@ from app.oauth.provider import DbOAuthProvider
 from app.oauth.verifier import CompositeTokenVerifier
 from app.routers.summary import make_daily_summary
 from app.schemas import EntryRead, FoodRead, GoalRead
+from app.services.barcode import lookup_barcode
 from app.services.food_search import search_foods as search_foods_service
 from app.services.nutrition import MacroValues, day_bounds, resolve_entry_macros
 
@@ -265,7 +266,12 @@ async def search_foods(
     ] = None,
     remote: Annotated[
         bool,
-        Field(description="Query external food sources; this may take a few seconds."),
+        Field(
+            description=(
+                "Query external food sources; this may take a few seconds and is not for "
+                "search-as-you-type."
+            )
+        ),
     ] = False,
 ) -> str:
     """Search visible foods and return nutrition values per 100 g."""
@@ -285,6 +291,27 @@ async def search_foods(
             return _json([FoodRead.model_validate(food).model_dump(mode="json") for food in foods])
         except Exception:
             return "Error: could not search foods."
+
+
+@server.tool()
+async def lookup_food_barcode(
+    barcode: Annotated[
+        str,
+        Field(description="EAN/UPC barcode; Open Food Facts is queried if it is not cached."),
+    ],
+) -> str:
+    """Look up a food by barcode, using Open Food Facts when it is not local."""
+    async with SessionLocal() as session:
+        user = await _user(session)
+        if user is None:
+            return "Error: authenticated user was not found."
+        try:
+            food = await lookup_barcode(session, user=user, barcode=barcode)
+            if food is None:
+                return "Food not found."
+            return _json(FoodRead.model_validate(food).model_dump(mode="json"))
+        except Exception:
+            return "Error: could not look up food barcode."
 
 
 @server.tool()
