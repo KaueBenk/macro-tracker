@@ -163,6 +163,11 @@ th, td { border-bottom: 1px solid var(--border); padding: .65rem .4rem; text-ali
   .food-result { align-items: center; }
 }
 @media (max-width: 719px) {
+  .date-nav > .button {
+    font-size: .8rem;
+    padding-left: .4rem;
+    padding-right: .4rem;
+  }
   .progress-title { font-size: .82rem; gap: .35rem; }
   .progress-meta { font-size: .75rem; gap: .35rem; }
   .food-register-form { grid-template-columns: 1fr; }
