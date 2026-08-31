@@ -56,10 +56,18 @@ uv run pytest -q
 
 ## Interface web
 
-A interface inicial server-rendered está disponível em `/app`. Ela usa o mesmo login Google
-configurado para o OAuth do sistema, mantém uma sessão própria em cookie HttpOnly e oferece
-logout protegido por CSRF. Em produção, configure `SECRET_KEY` com um valor aleatório longo.
-O frontend usa Jinja2, HTMX e CSS próprio dentro do FastAPI, sem SPA, bundle ou etapa de build.
+A interface server-rendered está disponível em `/app`. Ela usa o mesmo login Google configurado
+para o OAuth do sistema, mantém uma sessão própria em cookie HttpOnly e oferece logout protegido
+por CSRF. Em produção, configure `SECRET_KEY` com um valor aleatório longo. O frontend usa
+Jinja2, HTMX servido localmente e CSS próprio dentro do FastAPI, sem SPA, CDN ou etapa de build.
+
+As páginas disponíveis são `/app` (dia e progresso), `/app/adicionar` (busca e registro),
+`/app/alimentos`, `/app/metas`, `/app/historico` e `/app/conta`. Todas exigem login; formulários
+usam POST/redirect/GET e CSRF. A busca remota só ocorre quando o usuário envia o formulário e
+alimentos de fontes externas sempre mostram sua atribuição.
+
+Em ambiente local (`APP_ENV=development`), `/web/dev-login` cria uma sessão visual para o usuário
+`visual@example.com` e redireciona para `/app`; essa rota não funciona em produção.
 
 Os alimentos globais incluem a Tabela Brasileira de Composição de Alimentos (TACO),
 4ª edição, do NEPA/UNICAMP (<https://nepa.unicamp.br/publicacoes/tabela-taco-excel/>).

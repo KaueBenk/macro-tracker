@@ -20,6 +20,7 @@ from app.oauth.identity import (
 )
 from app.routers import account, entries, foods, goals, summary
 from app.web.auth import WebAuth
+from app.web.pages import router as web_pages_router
 
 
 def create_app() -> FastAPI:
@@ -88,6 +89,7 @@ def create_app() -> FastAPI:
             web_callback=web_auth.callback,
         )
     )
+    application.include_router(web_pages_router)
     application.include_router(web_auth.router())
     application.router.routes.append(Route("/mcp", mcp_app))
     application.router.routes.append(Route("/mcp/", mcp_app))

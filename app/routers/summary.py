@@ -94,22 +94,8 @@ async def build_daily_summary(day: date, user: User, session: AsyncSession) -> D
     return make_daily_summary(day, entries, list(goals_result.scalars()))
 
 
-@router.get("/daily", response_model=DailySummary)
-async def daily_summary(
-    summary_date: date | None = Query(default=None, alias="date"),
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-) -> DailySummary:
-    target = summary_date or datetime.now(ZoneInfo(user.timezone)).date()
-    return await build_daily_summary(target, user, session)
-
-
-@router.get("/range", response_model=RangeSummary)
-async def range_summary(
-    date_from: date = Query(alias="from"),
-    date_to: date = Query(alias="to"),
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
+async def build_range_summary(
+    date_from: date, date_to: date, user: User, session: AsyncSession
 ) -> RangeSummary:
     if date_to < date_from:
         date_from, date_to = date_to, date_from
@@ -149,3 +135,23 @@ async def range_summary(
         fiber_g=round(sum(day.consumed.fiber_g for day in days) / count, 2),
     )
     return RangeSummary(days=days, averages=averages)
+
+
+@router.get("/daily", response_model=DailySummary)
+async def daily_summary(
+    summary_date: date | None = Query(default=None, alias="date"),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> DailySummary:
+    target = summary_date or datetime.now(ZoneInfo(user.timezone)).date()
+    return await build_daily_summary(target, user, session)
+
+
+@router.get("/range", response_model=RangeSummary)
+async def range_summary(
+    date_from: date = Query(alias="from"),
+    date_to: date = Query(alias="to"),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> RangeSummary:
+    return await build_range_summary(date_from, date_to, user, session)

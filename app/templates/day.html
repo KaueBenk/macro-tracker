@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Hoje · Macro Tracker{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">Seu dia</p><h1>{{ day.strftime("%d/%m/%Y") }}</h1></div>
+  <form class="date-nav" method="get" action="/app">
+    <a class="button secondary" href="/app?d={{ previous_day }}" aria-label="Dia anterior">‹</a>
+    <label class="sr-only" for="day-date">Data</label><input id="day-date" type="date" name="d" value="{{ day.isoformat() }}">
+    <a class="button secondary" href="/app?d={{ next_day }}" aria-label="Próximo dia">›</a>
+    <a class="button secondary" href="/app?d={{ today_day }}">Hoje</a>
+    <button class="button secondary" type="submit">Ir</button>
+  </form>
+</section>
+{% if date_error %}<p class="notice warning">{{ date_error }}</p>{% endif %}
+<section id="progress-cards" class="progress-grid">{% include "partials/progress.html" %}</section>
+{% if not summary.goal %}<p class="notice">Você ainda não definiu uma meta. <a href="/app/metas">Definir metas</a></p>{% endif %}
+<section class="card">
+  <div class="section-heading"><h2>Entradas</h2><a class="button" href="/app/adicionar">+ Registrar</a></div>
+  {% for meal, meal_entries in entries|groupby("meal") %}
+  <h3 class="meal-heading">{{ meal_labels[meal] }}</h3>
+  <div class="entry-list">
+    {% for entry in meal_entries %}
+    <article class="entry-row" id="entry-{{ entry.id }}">
+      <div>
+        <strong>{{ entry.description or (entry.food.name if entry.food else "Entrada avulsa") }}</strong>
+        <small>{{ entry.logged_at.astimezone(user_zone).strftime("%H:%M") }} · {{ entry.quantity_g or "—" }} g</small>
+        {% if entry.food and entry.food.attribution %}<small class="attribution">{{ entry.food.attribution }}</small>{% endif %}
+      </div>
+      <div class="macro-line">{{ entry.kcal }} kcal · P {{ entry.protein_g }} · C {{ entry.carbs_g }} · G {{ entry.fat_g }} · F {{ entry.fiber_g or 0 }} g</div>
+      <form method="post" action="/app/entradas/{{ entry.id }}/excluir" hx-post="/app/entradas/{{ entry.id }}/excluir" hx-target="#entry-{{ entry.id }}" hx-swap="outerHTML">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="icon-button danger" type="submit" aria-label="Excluir entrada">×</button>
+      </form>
+    </article>
+    {% else %}<p class="muted">Nenhuma entrada nesta refeição.</p>{% endfor %}
+  </div>
+  {% else %}<p class="muted">Nenhuma entrada registrada neste dia.</p>{% endfor %}
+</section>
+{% endblock %}

@@ -237,11 +237,25 @@ Licenças, atribuições, limites e decisões para todas as fontes estão em
    meta vigente por data, summary diário com e sem meta, handshake MCP + ao menos duas tools
    via HTTP)
 
-## Interface web (W1)
+## Interface web (W1/W2)
 
 `GET /app` exige uma sessão de navegador iniciada em `GET /web/login`. O callback Google é
 compartilhado com o fluxo MCP em `/oauth/google/callback` e despacha pelo state, preservando
 as regras existentes de allowlist e `email_verified`. Logout em `POST /web/logout` exige um
 token CSRF derivado por HMAC do token de sessão, usando `SECRET_KEY`; essa chave é obrigatória
 em produção. A camada é server-rendered com Jinja2, HTMX e CSS próprio, sem SPA, bundle ou
-build frontend. As páginas de produto serão adicionadas em etapas posteriores.
+build frontend. W2 implementa as páginas server-rendered em português brasileiro:
+
+- `/app`: progresso diário de calorias e macros, metas, entradas agrupadas por refeição,
+  navegação de data e exclusão HTMX;
+- `/app/adicionar`: busca local ou remota explícita por texto, lookup por código de barras e
+  entrada avulsa;
+- `/app/alimentos`: biblioteca visível ao usuário, com CRUD somente para alimentos privados;
+- `/app/metas`: criação/atualização de metas com histórico;
+- `/app/historico`: resumo dos últimos 7 ou 30 dias e médias;
+- `/app/conta`: e-mail, fuso horário e logout.
+
+As views chamam os serviços existentes de busca, barcode, nutrição e summary, sem chamar a API
+REST por HTTP nem duplicar suas regras. O HTMX é servido como arquivo local em `/static`, e a
+interface usa CSS próprio responsivo, sem SPA, CDN ou etapa de build. A atribuição de todo
+alimento que tenha `attribution` é renderizada junto do alimento.

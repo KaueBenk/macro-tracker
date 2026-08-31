@@ -1,0 +1,8 @@
+{% for card in progress %}
+<article class="progress-card">
+  <div class="progress-title"><span>{{ card.label }}</span><strong>{{ "%.1f"|format(card.consumed) }} {{ card.unit }}</strong></div>
+  <div class="progress-bar"><span style="width: {{ card.bar_percent }}%"></span></div>
+  {% if card.goal is not none %}<div class="progress-meta"><span>Meta {{ "%.1f"|format(card.goal) }} {{ card.unit }}</span><span>{{ "%.1f"|format(card.percent) }}%</span></div><small>{{ "%.1f"|format(card.remaining) }} {{ card.unit }} restante</small>
+  {% else %}<small>Sem meta definida</small>{% endif %}
+</article>
+{% endfor %}

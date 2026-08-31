@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Histórico · Macro Tracker{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Tendências</p><h1>Histórico</h1></div><div class="segmented"><a href="/app/historico?dias=7" class="{{ 'active' if days_count == 7 else '' }}">7 dias</a><a href="/app/historico?dias=30" class="{{ 'active' if days_count == 30 else '' }}">30 dias</a></div></div>{% if invalid_days %}<p class="notice warning">Período inválido; mostrando os últimos 7 dias.</p>{% endif %}
+<section class="card"><h2>Médias dos {{ days_count }} dias</h2><div class="metric-list"><span>{{ summary.averages.kcal }} kcal</span><span>P {{ summary.averages.protein_g }} g</span><span>C {{ summary.averages.carbs_g }} g</span><span>G {{ summary.averages.fat_g }} g</span><span>F {{ summary.averages.fiber_g }} g</span></div></section>
+<section class="card table-wrap"><table><thead><tr><th>Dia</th><th>Consumido</th><th>Meta kcal</th><th>Entradas</th></tr></thead><tbody>{% for day in summary.days %}<tr><td><a href="/app?d={{ day.date.isoformat() }}">{{ day.date.strftime("%d/%m/%Y") }}</a></td><td>{{ day.consumed.kcal }} kcal</td><td>{{ day.goal.kcal if day.goal else "—" }}</td><td>{{ day.entries_count }}</td></tr>{% endfor %}</tbody></table></section>
+{% endblock %}

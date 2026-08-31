@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import secrets
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from urllib.parse import urlencode
 
 import httpx
@@ -29,7 +30,7 @@ WEB_SESSION_COOKIE = "mt_web_session"
 WEB_LOGIN_TTL = timedelta(minutes=10)
 WEB_SESSION_TTL = timedelta(days=30)
 
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=Path(__file__).resolve().parent.parent / "templates")
 
 
 def _secure_cookies(settings: Settings) -> bool:
@@ -263,6 +264,47 @@ class WebAuth:
         response.delete_cookie(WEB_SESSION_COOKIE, path="/")
         return response
 
+    async def dev_login(self, request: Request) -> Response:
+        if self.settings.app_env.lower() != "development":
+            return Response("Not found", status_code=status.HTTP_404_NOT_FOUND)
+        now = datetime.now(UTC)
+        async with SessionLocal() as session:
+            user = await session.scalar(select(User).where(User.email == "visual@example.com"))
+            if user is None:
+                user = User(
+                    email="visual@example.com",
+                    timezone=self.settings.default_timezone,
+                )
+                session.add(user)
+                await session.flush()
+            raw_token, session_hash = create_token()
+            session.add(
+                WebSession(
+                    user_id=user.id,
+                    token_hash=session_hash,
+                    created_at=now,
+                    expires_at=now + WEB_SESSION_TTL,
+                    last_seen_at=now,
+                )
+            )
+            await session.commit()
+        response = RedirectResponse(
+            _valid_next_path(request.query_params.get("next")),
+            status_code=status.HTTP_302_FOUND,
+            headers={"Cache-Control": "no-store"},
+        )
+        response.set_cookie(
+            WEB_SESSION_COOKIE,
+            raw_token,
+            max_age=int(WEB_SESSION_TTL.total_seconds()),
+            expires=int(WEB_SESSION_TTL.total_seconds()),
+            path="/",
+            secure=_secure_cookies(self.settings),
+            httponly=True,
+            samesite="lax",
+        )
+        return response
+
     def router(self) -> APIRouter:
         router = APIRouter()
 
@@ -273,6 +315,10 @@ class WebAuth:
         @router.get("/web/login")
         async def login(request: Request) -> Response:
             return await self.login(request)
+
+        @router.get("/web/dev-login")
+        async def development_login(request: Request) -> Response:
+            return await self.dev_login(request)
 
         @router.post("/web/logout")
         async def logout(request: Request, user: User = Depends(require_csrf)) -> Response:
