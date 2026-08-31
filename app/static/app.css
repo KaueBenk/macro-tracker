@@ -41,6 +41,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .brand { color: var(--text); font-weight: 750; text-decoration: none; }
 .top-nav { display: none; gap: 1rem; }
 .top-nav a, .bottom-nav a { color: var(--muted); text-decoration: none; }
+.top-nav a.active, .bottom-nav a.active {
+  color: var(--text);
+  font-weight: 700;
+}
 .container { margin: 0 auto; max-width: 1000px; padding: 1.25rem 1rem 6rem; }
 h1, h2, h3 { line-height: 1.2; margin-top: 0; }
 h1 { font-size: clamp(1.7rem, 5vw, 2.5rem); margin-bottom: .25rem; }
@@ -49,11 +53,23 @@ h2 { font-size: 1.25rem; }
 .page-heading, .section-heading, .progress-title, .progress-meta { align-items: center; display: flex; justify-content: space-between; gap: 1rem; }
 .page-heading { flex-wrap: wrap; margin-bottom: 1rem; }
 .date-nav, .inline-form { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; }
-.date-nav input { max-width: 10rem; }
+.date-nav {
+  display: grid;
+  flex: 1 1 100%;
+  gap: .35rem;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  min-width: 0;
+}
+.date-nav input { max-width: none; min-width: 0; }
+.date-nav .button { padding-left: .65rem; padding-right: .65rem; white-space: nowrap; }
+.date-nav noscript { display: contents; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 1rem 0; padding: 1rem; }
 .progress-grid { display: grid; gap: .75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .progress-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .8rem; }
 .progress-title { font-size: .92rem; }
+.progress-title span, .progress-title strong, .progress-meta span, .progress-card > small {
+  white-space: nowrap;
+}
 .progress-title strong { font-variant-numeric: tabular-nums; }
 .progress-bar { background: var(--surface-2); border-radius: 99px; height: 8px; margin: .65rem 0 .4rem; overflow: hidden; }
 .progress-bar span { background: var(--accent); display: block; height: 100%; }
@@ -77,7 +93,39 @@ input, select { background: var(--bg); border: 1px solid var(--border); color: v
 .checkbox { align-items: center; display: flex; gap: .5rem; }
 .checkbox input { min-height: 20px; width: 20px; }
 .food-results { margin-top: 1rem; }
-.food-result { grid-template-columns: 1fr; }
+.food-result { display: block; }
+.food-result-heading {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .2rem .55rem;
+}
+.food-result-heading .attribution { margin-top: 0; }
+.food-source { color: var(--muted); font-size: .85rem; }
+.food-result-macros {
+  color: var(--muted);
+  font-size: .85rem;
+  font-variant-numeric: tabular-nums;
+  margin-top: .35rem;
+}
+.food-register-form {
+  align-items: end;
+  display: grid;
+  gap: .5rem;
+  grid-template-columns: minmax(6rem, .65fr) minmax(8rem, 1fr) minmax(12rem, 1.5fr) auto;
+  margin-top: .8rem;
+}
+.food-register-form input, .food-register-form select { min-width: 0; }
+.food-register-form .button { white-space: nowrap; }
+.entry-description { margin-top: .2rem; }
+.search-form {
+  align-items: center;
+  display: grid;
+  gap: .5rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.search-button { min-width: 7.5rem; }
+.text-search-form .search-button { justify-self: start; }
 .icon-button { background: transparent; border: 0; font-size: 1.5rem; padding: .2rem .6rem; }
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; font-variant-numeric: tabular-nums; width: 100%; }
@@ -88,7 +136,15 @@ th, td { border-bottom: 1px solid var(--border); padding: .65rem .4rem; text-ali
 .segmented a { border: 1px solid var(--border); padding: .45rem .7rem; text-decoration: none; }
 .segmented a.active { background: var(--accent); color: #082017; }
 .bottom-nav { background: var(--surface); border-top: 1px solid var(--border); bottom: 0; display: flex; justify-content: space-around; left: 0; padding: .45rem .2rem; position: fixed; right: 0; z-index: 5; }
-.bottom-nav a { font-size: .75rem; padding: .45rem .2rem; }
+.bottom-nav a {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  font-size: .75rem;
+  justify-content: center;
+  min-height: 44px;
+  padding: .45rem .2rem;
+}
 .sr-only { height: 1px; margin: -1px; overflow: hidden; position: absolute; width: 1px; clip: rect(0, 0, 0, 0); }
 @media (min-width: 720px) {
   .site-header { align-items: center; display: flex; justify-content: space-between; padding: 1rem max(1rem, calc((100% - 1000px) / 2)); }
@@ -96,7 +152,14 @@ th, td { border-bottom: 1px solid var(--border); padding: .65rem .4rem; text-ali
   .bottom-nav { display: none; }
   .container { padding-bottom: 2rem; }
   .progress-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .date-nav { flex: 0 1 auto; grid-template-columns: auto minmax(10rem, 1fr) auto auto; width: auto; }
   .entry-row, .food-result { grid-template-columns: 1fr auto auto; }
   .entry-row > div:nth-child(2), .entry-row form { grid-column: auto; grid-row: auto; }
   .food-result { align-items: center; }
+}
+@media (max-width: 719px) {
+  .progress-title { font-size: .82rem; gap: .35rem; }
+  .progress-meta { font-size: .75rem; gap: .35rem; }
+  .food-register-form { grid-template-columns: 1fr; }
+  .food-register-form .button { width: 100%; }
 }

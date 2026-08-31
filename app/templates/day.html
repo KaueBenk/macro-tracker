@@ -11,10 +11,23 @@
     <form class="date-nav" method="get" action="/app">
       <a class="button secondary" href="/app?d={{ previous_day }}" aria-label="Dia anterior">‹</a>
       <label class="sr-only" for="day-date">Data</label>
-      <input id="day-date" type="date" name="d" value="{{ day.isoformat() }}">
+      <input
+        id="day-date"
+        type="date"
+        name="d"
+        value="{{ day.isoformat() }}"
+        hx-get="/app"
+        hx-trigger="change"
+        hx-target="#app-content"
+        hx-select="#app-content"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+      >
       <a class="button secondary" href="/app?d={{ next_day }}" aria-label="Próximo dia">›</a>
       <a class="button secondary" href="/app?d={{ today_day }}">Hoje</a>
-      <button class="button secondary" type="submit">Ir</button>
+      <noscript>
+        <button class="button secondary" type="submit">Ir</button>
+      </noscript>
     </form>
   </section>
 
@@ -44,9 +57,14 @@
         {% for entry in meal_entries %}
           <article class="entry-row" id="entry-{{ entry.id }}">
             <div>
-              <strong>
-                {{ entry.description or (entry.food.name if entry.food else "Entrada avulsa") }}
-              </strong>
+              {% if entry.food %}
+                <strong>{{ entry.food.name }}</strong>
+                {% if entry.description %}
+                  <small class="entry-description">{{ entry.description }}</small>
+                {% endif %}
+              {% else %}
+                <strong>{{ entry.description or "Entrada avulsa" }}</strong>
+              {% endif %}
               <small>
                 {{ entry.logged_at.astimezone(user_zone).strftime("%H:%M") }}
                 · {{ entry.quantity_g or "—" }} g
@@ -56,8 +74,8 @@
               {% endif %}
             </div>
             <div class="macro-line">
-              {{ entry.kcal }} kcal · P {{ entry.protein_g }} · C {{ entry.carbs_g }}
-              · G {{ entry.fat_g }} · F {{ entry.fiber_g or 0 }} g
+              {{ entry.kcal }} kcal · P {{ entry.protein_g }} g · C {{ entry.carbs_g }} g
+              · G {{ entry.fat_g }} g · F {{ entry.fiber_g or 0 }} g
             </div>
             <form
               method="post"

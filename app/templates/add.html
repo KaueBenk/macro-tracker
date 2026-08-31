@@ -21,7 +21,7 @@
       Ela só acontece ao enviar este formulário.
     </p>
     <form
-      class="stack-form"
+      class="stack-form text-search-form"
       method="get"
       action="/app/adicionar"
       hx-get="/app/adicionar"
@@ -34,7 +34,7 @@
         <input type="checkbox" name="remote" value="true" {% if remote %}checked{% endif %}>
         Buscar em fontes externas
       </label>
-      <button class="button" type="submit">Buscar</button>
+      <button class="button search-button" type="submit">Buscar</button>
     </form>
     <div id="text-results">
       {% if q %}
@@ -46,7 +46,7 @@
   <section class="card">
     <h2>Buscar por código de barras</h2>
     <form
-      class="inline-form"
+      class="search-form"
       method="get"
       action="/app/adicionar"
       hx-get="/app/adicionar"
@@ -61,7 +61,7 @@
         inputmode="numeric"
         placeholder="Somente números"
       >
-      <button class="button" type="submit">Buscar</button>
+      <button class="button search-button" type="submit">Buscar</button>
     </form>
     <div id="barcode-results">
       {% if barcode %}

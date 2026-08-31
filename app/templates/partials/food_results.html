@@ -1,21 +1,23 @@
 <div class="food-results">
   {% for food in foods %}
     <article class="food-result">
-      <div>
-        <strong>{{ food.name }}</strong>
-        {% if food.brand %}
-          <span class="muted">· {{ food.brand }}</span>
-        {% endif %}
-        <small>
-          Fonte: {{ food.source or "manual" }} · {{ food.kcal }} kcal ·
-          P {{ food.protein_g }} g · C {{ food.carbs_g }} g · G {{ food.fat_g }} g ·
-          F {{ food.fiber_g or 0 }} g
-        </small>
-        {% if food.attribution %}
-          <small class="attribution">{{ food.attribution }}</small>
-        {% endif %}
+      <div class="food-result-info">
+        <div class="food-result-heading">
+          <strong>{{ food.name }}</strong>
+          {% if food.brand %}
+            <span class="muted">· {{ food.brand }}</span>
+          {% endif %}
+          <span class="food-source">Fonte: {{ food.source or "manual" }}</span>
+          {% if food.attribution %}
+            <small class="attribution">{{ food.attribution }}</small>
+          {% endif %}
+        </div>
+        <div class="food-result-macros">
+          {{ food.kcal }} kcal · P {{ food.protein_g }} g · C {{ food.carbs_g }} g ·
+          G {{ food.fat_g }} g · F {{ food.fiber_g or 0 }} g
+        </div>
       </div>
-      <form class="inline-form" method="post" action="/app/entradas">
+      <form class="food-register-form" method="post" action="/app/entradas">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="food_id" value="{{ food.id }}">
         <label class="sr-only" for="quantity-{{ food.id }}">Gramas</label>
