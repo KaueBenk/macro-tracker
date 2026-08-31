@@ -11,18 +11,26 @@
     <header class="site-header">
       <a class="brand" href="/app">Macro Tracker</a>
       {% if user %}
-      <nav class="top-nav" aria-label="Navegação principal">
-        <a href="/app">Hoje</a><a href="/app/adicionar">Registrar</a>
-        <a href="/app/alimentos">Alimentos</a><a href="/app/metas">Metas</a><a href="/app/conta">Conta</a>
-      </nav>
+        <nav class="top-nav" aria-label="Navegação principal">
+          <a href="/app">Hoje</a>
+          <a href="/app/adicionar">Registrar</a>
+          <a href="/app/alimentos">Alimentos</a>
+          <a href="/app/metas">Metas</a>
+          <a href="/app/conta">Conta</a>
+        </nav>
       {% endif %}
     </header>
-    <main class="container">{% block content %}{% endblock %}</main>
+    <main class="container">
+      {% block content %}{% endblock %}
+    </main>
     {% if user %}
-    <nav class="bottom-nav" aria-label="Navegação móvel">
-      <a href="/app">Hoje</a><a href="/app/adicionar">Registrar</a>
-      <a href="/app/alimentos">Alimentos</a><a href="/app/metas">Metas</a><a href="/app/conta">Conta</a>
-    </nav>
+      <nav class="bottom-nav" aria-label="Navegação móvel">
+        <a href="/app">Hoje</a>
+        <a href="/app/adicionar">Registrar</a>
+        <a href="/app/alimentos">Alimentos</a>
+        <a href="/app/metas">Metas</a>
+        <a href="/app/conta">Conta</a>
+      </nav>
     {% endif %}
   </body>
 </html>

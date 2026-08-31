@@ -24,8 +24,9 @@ from app.web.auth import (
     WEB_LOGIN_COOKIE,
     WEB_SESSION_COOKIE,
     WebAuth,
-    _csrf_token,
+    csrf_token,
 )
+from app.web.pages import router as web_pages_router
 
 
 def _settings(
@@ -53,6 +54,7 @@ def _app(
     provider = DbOAuthProvider()
     google = GoogleIdentityProvider(provider, settings, handler)
     web = WebAuth(settings, handler)
+    application.include_router(web_pages_router)
     application.include_router(web.router())
     application.router.routes.append(
         create_google_callback_route(
@@ -195,10 +197,10 @@ async def test_app_requires_session_and_logout_requires_csrf() -> None:
         client.cookies.set(WEB_SESSION_COOKIE, raw_session)
         page = await client.get("/app")
         assert page.status_code == 200
-        assert "web@example.com" in page.text
+        assert "Hoje" in page.text
         no_csrf = await client.post("/web/logout", follow_redirects=False)
         assert no_csrf.status_code == 403
-        csrf = _csrf_token(raw_session, settings)
+        csrf = csrf_token(raw_session, settings)
         logged_out = await client.post(
             "/web/logout",
             data={"csrf_token": csrf},

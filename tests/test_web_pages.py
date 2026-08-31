@@ -10,7 +10,7 @@ from app.db import SessionLocal
 from app.main import app
 from app.models import Entry, Food, User, WebSession
 from app.security import hash_token
-from app.web.auth import WEB_SESSION_COOKIE, _csrf_token
+from app.web.auth import WEB_SESSION_COOKIE, csrf_token
 
 
 async def _web_client() -> tuple[AsyncClient, User, str]:
@@ -61,7 +61,7 @@ async def test_web_pages_require_session_and_render() -> None:
 @pytest.mark.asyncio
 async def test_create_goal_entry_and_delete_entry_from_web() -> None:
     client, user, raw_token = await _web_client()
-    csrf = _csrf_token(raw_token, get_settings())
+    csrf = csrf_token(raw_token, get_settings())
     async with client:
         goal = await client.post(
             "/app/metas",
@@ -112,7 +112,7 @@ async def test_create_goal_entry_and_delete_entry_from_web() -> None:
 @pytest.mark.asyncio
 async def test_food_search_and_external_attribution_are_rendered() -> None:
     client, _, raw_token = await _web_client()
-    csrf = _csrf_token(raw_token, get_settings())
+    csrf = csrf_token(raw_token, get_settings())
     async with SessionLocal() as session:
         session.add(
             Food(
@@ -185,15 +185,3 @@ async def test_invalid_dates_and_periods_do_not_fail() -> None:
     assert "Data inválida" in day.text
     assert history.status_code == 200
     assert "últimos 7 dias" in history.text
-
-
-@pytest.mark.asyncio
-async def test_development_login_creates_visual_session() -> None:
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/web/dev-login", follow_redirects=False)
-        assert response.status_code == 302
-        assert response.headers["location"] == "/app"
-        assert WEB_SESSION_COOKIE in response.cookies
-        page = await client.get("/app/conta")
-    assert page.status_code == 200
-    assert "visual@example.com" in page.text

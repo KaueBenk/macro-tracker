@@ -66,9 +66,6 @@ As páginas disponíveis são `/app` (dia e progresso), `/app/adicionar` (busca 
 usam POST/redirect/GET e CSRF. A busca remota só ocorre quando o usuário envia o formulário e
 alimentos de fontes externas sempre mostram sua atribuição.
 
-Em ambiente local (`APP_ENV=development`), `/web/dev-login` cria uma sessão visual para o usuário
-`visual@example.com` e redireciona para `/app`; essa rota não funciona em produção.
-
 Os alimentos globais incluem a Tabela Brasileira de Composição de Alimentos (TACO),
 4ª edição, do NEPA/UNICAMP (<https://nepa.unicamp.br/publicacoes/tabela-taco-excel/>).
 Atribua e cite o NEPA/UNICAMP ao utilizar esses dados. A busca ignora acentos e exige

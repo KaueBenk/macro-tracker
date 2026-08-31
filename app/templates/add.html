@@ -1,26 +1,120 @@
 {% extends "base.html" %}
+
 {% block title %}Registrar · Macro Tracker{% endblock %}
+
 {% block content %}
-<div class="page-heading"><div><p class="eyebrow">Registro</p><h1>Adicionar alimento</h1></div></div>
-{% if error %}<p class="notice error">{{ error }}</p>{% endif %}
-<section class="card"><h2>Buscar por texto</h2><p class="muted">A busca externa consulta APIs e pode não ser instantânea. Ela só acontece ao enviar este formulário.</p>
-  <form class="stack-form" method="get" action="/app/adicionar" hx-get="/app/adicionar" hx-target="#text-results" hx-swap="innerHTML">
-    <label for="food-query">Alimento</label><input id="food-query" name="q" value="{{ q }}" placeholder="Ex.: arroz integral">
-    <label class="checkbox"><input type="checkbox" name="remote" value="true" {% if remote %}checked{% endif %}> Buscar em fontes externas</label>
-    <button class="button" type="submit">Buscar</button>
-  </form>
-  <div id="text-results">{% if q %}{% include "partials/food_results.html" %}{% endif %}</div>
-</section>
-<section class="card"><h2>Buscar por código de barras</h2>
-  <form class="inline-form" method="get" action="/app/adicionar" hx-get="/app/adicionar" hx-target="#barcode-results" hx-swap="innerHTML"><label class="sr-only" for="food-barcode">Código de barras</label><input id="food-barcode" name="barcode" value="{{ barcode }}" inputmode="numeric" placeholder="Somente números"><button class="button" type="submit">Buscar</button></form>
-  <div id="barcode-results">{% if barcode %}{% include "partials/food_results.html" %}{% endif %}</div>
-</section>
-<section class="card"><h2>Entrada avulsa</h2>
-  <form class="stack-form" method="post" action="/app/entradas"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <label for="manual-description">Descrição</label><input id="manual-description" name="description" value="{{ form.get('description', '') }}">
-    <div class="form-grid"><label>Calorias <input name="kcal" inputmode="decimal" value="{{ form.get('kcal', '') }}"></label><label>Proteína (g) <input name="protein_g" inputmode="decimal" value="{{ form.get('protein_g', '') }}"></label><label>Carboidrato (g) <input name="carbs_g" inputmode="decimal" value="{{ form.get('carbs_g', '') }}"></label><label>Gordura (g) <input name="fat_g" inputmode="decimal" value="{{ form.get('fat_g', '') }}"></label><label>Fibra (g) <input name="fiber_g" inputmode="decimal" value="{{ form.get('fiber_g', '') }}"></label><label>Gramas <input name="quantity_g" inputmode="decimal" value="{{ form.get('quantity_g', '') }}"></label></div>
-    <label>Refeição <select name="meal">{% for value, label in meal_labels.items() %}<option value="{{ value.value }}">{{ label }}</option>{% endfor %}</select></label>
-    <label>Data e hora <input type="datetime-local" name="logged_at" value="{{ form.get('logged_at', '') }}"></label><button class="button" type="submit">Registrar entrada</button>
-  </form>
-</section>
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">Registro</p>
+      <h1>Adicionar alimento</h1>
+    </div>
+  </div>
+
+  {% if error %}
+    <p class="notice error">{{ error }}</p>
+  {% endif %}
+
+  <section class="card">
+    <h2>Buscar por texto</h2>
+    <p class="muted">
+      A busca externa consulta APIs e pode não ser instantânea.
+      Ela só acontece ao enviar este formulário.
+    </p>
+    <form
+      class="stack-form"
+      method="get"
+      action="/app/adicionar"
+      hx-get="/app/adicionar"
+      hx-target="#text-results"
+      hx-swap="innerHTML"
+    >
+      <label for="food-query">Alimento</label>
+      <input id="food-query" name="q" value="{{ q }}" placeholder="Ex.: arroz integral">
+      <label class="checkbox">
+        <input type="checkbox" name="remote" value="true" {% if remote %}checked{% endif %}>
+        Buscar em fontes externas
+      </label>
+      <button class="button" type="submit">Buscar</button>
+    </form>
+    <div id="text-results">
+      {% if q %}
+        {% include "partials/food_results.html" %}
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Buscar por código de barras</h2>
+    <form
+      class="inline-form"
+      method="get"
+      action="/app/adicionar"
+      hx-get="/app/adicionar"
+      hx-target="#barcode-results"
+      hx-swap="innerHTML"
+    >
+      <label class="sr-only" for="food-barcode">Código de barras</label>
+      <input
+        id="food-barcode"
+        name="barcode"
+        value="{{ barcode }}"
+        inputmode="numeric"
+        placeholder="Somente números"
+      >
+      <button class="button" type="submit">Buscar</button>
+    </form>
+    <div id="barcode-results">
+      {% if barcode %}
+        {% include "partials/food_results.html" %}
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Entrada avulsa</h2>
+    <form class="stack-form" method="post" action="/app/entradas">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="manual-description">Descrição</label>
+      <input id="manual-description" name="description" value="{{ form.get('description', '') }}">
+      <div class="form-grid">
+        <label>
+          Calorias
+          <input name="kcal" inputmode="decimal" value="{{ form.get('kcal', '') }}">
+        </label>
+        <label>
+          Proteína (g)
+          <input name="protein_g" inputmode="decimal" value="{{ form.get('protein_g', '') }}">
+        </label>
+        <label>
+          Carboidrato (g)
+          <input name="carbs_g" inputmode="decimal" value="{{ form.get('carbs_g', '') }}">
+        </label>
+        <label>
+          Gordura (g)
+          <input name="fat_g" inputmode="decimal" value="{{ form.get('fat_g', '') }}">
+        </label>
+        <label>
+          Fibra (g)
+          <input name="fiber_g" inputmode="decimal" value="{{ form.get('fiber_g', '') }}">
+        </label>
+        <label>
+          Gramas
+          <input name="quantity_g" inputmode="decimal" value="{{ form.get('quantity_g', '') }}">
+        </label>
+      </div>
+      <label>
+        Refeição
+        <select name="meal">
+          {% for value, label in meal_labels.items() %}
+            <option value="{{ value.value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Data e hora
+        <input type="datetime-local" name="logged_at" value="{{ form.get('logged_at', '') }}">
+      </label>
+      <button class="button" type="submit">Registrar entrada</button>
+    </form>
+  </section>
 {% endblock %}

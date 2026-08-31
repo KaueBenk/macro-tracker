@@ -21,7 +21,7 @@ from app.services import food_search
 from app.services.nutrition import MacroValues, day_bounds, resolve_entry_macros
 from app.web.auth import (
     WEB_SESSION_COOKIE,
-    _csrf_token,
+    csrf_token,
     get_web_user,
     require_csrf,
     templates,
@@ -81,7 +81,7 @@ def _csrf(request: Request) -> str:
     raw_token = request.cookies.get(WEB_SESSION_COOKIE)
     if raw_token is None:
         return ""
-    return _csrf_token(raw_token, getattr(request.app.state, "settings"))
+    return csrf_token(raw_token, request.app.state.settings)
 
 
 def _base_context(request: Request, user: User, **values: object) -> dict[str, object]:
