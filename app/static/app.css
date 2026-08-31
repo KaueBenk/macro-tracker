@@ -54,15 +54,20 @@ h2 { font-size: 1.25rem; }
 .page-heading { flex-wrap: wrap; margin-bottom: 1rem; }
 .date-nav, .inline-form { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; }
 .date-nav {
-  display: grid;
+  align-items: center;
+  display: flex;
   flex: 1 1 100%;
+  flex-wrap: nowrap;
   gap: .35rem;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
   min-width: 0;
 }
-.date-nav input { max-width: none; min-width: 0; }
-.date-nav .button { padding-left: .65rem; padding-right: .65rem; white-space: nowrap; }
-.date-nav noscript { display: contents; }
+.date-nav input { flex: 1 1 auto; max-width: none; min-width: 0; }
+.date-nav > .button {
+  flex: 0 0 auto;
+  padding-left: .65rem;
+  padding-right: .65rem;
+  white-space: nowrap;
+}
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 1rem 0; padding: 1rem; }
 .progress-grid { display: grid; gap: .75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .progress-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .8rem; }
@@ -152,7 +157,7 @@ th, td { border-bottom: 1px solid var(--border); padding: .65rem .4rem; text-ali
   .bottom-nav { display: none; }
   .container { padding-bottom: 2rem; }
   .progress-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .date-nav { flex: 0 1 auto; grid-template-columns: auto minmax(10rem, 1fr) auto auto; width: auto; }
+  .date-nav { flex: 0 1 auto; width: auto; }
   .entry-row, .food-result { grid-template-columns: 1fr auto auto; }
   .entry-row > div:nth-child(2), .entry-row form { grid-column: auto; grid-row: auto; }
   .food-result { align-items: center; }
