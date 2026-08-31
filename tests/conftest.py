@@ -19,6 +19,8 @@ from app.models import (
     OAuthPendingAuth,
     OAuthToken,
     User,
+    WebLoginState,
+    WebSession,
 )
 
 
@@ -26,6 +28,8 @@ from app.models import (
 async def clean_database() -> AsyncIterator[None]:
     await engine.dispose()
     async with SessionLocal() as session:
+        await session.execute(delete(WebLoginState))
+        await session.execute(delete(WebSession))
         await session.execute(delete(OAuthPendingAuth))
         await session.execute(delete(DatasetVersion))
         await session.execute(delete(OAuthAuthCode))
@@ -39,6 +43,8 @@ async def clean_database() -> AsyncIterator[None]:
         await session.commit()
     yield
     async with SessionLocal() as session:
+        await session.execute(delete(WebLoginState))
+        await session.execute(delete(WebSession))
         await session.execute(delete(OAuthPendingAuth))
         await session.execute(delete(DatasetVersion))
         await session.execute(delete(OAuthAuthCode))

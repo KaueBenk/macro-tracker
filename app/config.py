@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     default_timezone: str = "America/Sao_Paulo"
     log_level: str = "INFO"
     public_base_url: str = "http://localhost:8000"
+    secret_key: str = ""
     google_client_id: str = ""
     google_client_secret: str = ""
     allowed_emails: str = ""

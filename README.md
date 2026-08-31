@@ -24,6 +24,7 @@ O `.env.example` usa:
 | `DEFAULT_TIMEZONE` | Fuso horário padrão de novos usuários | `America/Sao_Paulo` |
 | `LOG_LEVEL` | Nível de log | `INFO` |
 | `PUBLIC_BASE_URL` | URL pública usada pelo OAuth e pelos metadados MCP | `http://localhost:8000` |
+| `SECRET_KEY` | Chave HMAC dos tokens CSRF da sessão web (obrigatória em produção) | `development-only-secret-key-change-me` |
 | `SERVERLESS` | Habilita `NullPool` e configurações do pgbouncer | `false` |
 | `DEV_LOGIN_EMAIL` | E-mail usado pelo login OAuth de desenvolvimento | `voce@example.com` |
 | `GOOGLE_CLIENT_ID` | Client ID OAuth do Google (produção) | — |
@@ -52,6 +53,13 @@ Execute a API e os testes:
 uv run uvicorn app.main:app --reload
 uv run pytest -q
 ```
+
+## Interface web
+
+A interface inicial server-rendered está disponível em `/app`. Ela usa o mesmo login Google
+configurado para o OAuth do sistema, mantém uma sessão própria em cookie HttpOnly e oferece
+logout protegido por CSRF. Em produção, configure `SECRET_KEY` com um valor aleatório longo.
+O frontend usa Jinja2, HTMX e CSS próprio dentro do FastAPI, sem SPA, bundle ou etapa de build.
 
 Os alimentos globais incluem a Tabela Brasileira de Composição de Alimentos (TACO),
 4ª edição, do NEPA/UNICAMP (<https://nepa.unicamp.br/publicacoes/tabela-taco-excel/>).

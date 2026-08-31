@@ -1,4 +1,4 @@
-# macro-tracker — spec técnica (etapa 1: backend + MCP + CI/CD)
+# macro-tracker — spec técnica (etapa 2: backend + MCP + interface web + CI/CD)
 
 App pessoal de contagem de macronutrientes e calorias, consumível por (a) agentes de IA via
 servidor MCP remoto, (b) API REST (que a GUI web da etapa 2 vai usar).
@@ -20,7 +20,7 @@ servidor MCP remoto, (b) API REST (que a GUI web da etapa 2 vai usar).
 ```
 app/
   __init__.py
-  main.py            # create_app(): monta REST + /mcp, /health
+  main.py            # create_app(): monta REST + /mcp, /app, /health
   config.py          # Settings (pydantic-settings)
   db.py              # engine async, sessionmaker, get_session dependency
   models.py          # ORM
@@ -38,6 +38,10 @@ app/
   mcp/
     server.py        # MCPServer + tools
     auth.py          # middleware ASGI de bearer token + contextvar do usuário
+  web/
+    auth.py          # login Google, sessão de navegador e CSRF
+  templates/         # páginas Jinja2 server-rendered
+  static/            # CSS próprio, sem etapa de build
 alembic/ (env.py, versions/)
 tests/
 .github/workflows/ci.yml
@@ -74,6 +78,10 @@ Todas as tabelas com `id UUID PK default uuid4`, `created_at`/`updated_at timest
 - `goals`: `user_id FK`, `effective_from date`, `kcal`, `protein_g`, `carbs_g`, `fat_g`,
   `fiber_g` nullable. Unique `(user_id, effective_from)`.
   Meta vigente em D = a de maior `effective_from <= D` (histórico preservado).
+- `web_login_states`: states de login Google para navegador, vinculados a um cookie temporário
+  e expirados após 10 minutos.
+- `web_sessions`: sessões de navegador com somente o hash do token, validade de 30 dias e
+  atualização de `last_seen_at`.
 
 Macros são `numeric(8,2)` no banco, expostos como `float` na API.
 
@@ -229,6 +237,11 @@ Licenças, atribuições, limites e decisões para todas as fontes estão em
    meta vigente por data, summary diário com e sem meta, handshake MCP + ao menos duas tools
    via HTTP)
 
-## Fora de escopo nesta etapa
+## Interface web (W1)
 
-GUI web (etapa 2) e busca em base pública de alimentos (ex. OpenFoodFacts).
+`GET /app` exige uma sessão de navegador iniciada em `GET /web/login`. O callback Google é
+compartilhado com o fluxo MCP em `/oauth/google/callback` e despacha pelo state, preservando
+as regras existentes de allowlist e `email_verified`. Logout em `POST /web/logout` exige um
+token CSRF derivado por HMAC do token de sessão, usando `SECRET_KEY`; essa chave é obrigatória
+em produção. A camada é server-rendered com Jinja2, HTMX e CSS próprio, sem SPA, bundle ou
+build frontend. As páginas de produto serão adicionadas em etapas posteriores.

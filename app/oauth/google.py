@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import secrets
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import cast
 from urllib.parse import urlencode
@@ -91,34 +92,10 @@ class GoogleIdentityProvider(IdentityProvider, OAuthLoginStarter):
             or not secrets.compare_digest(pending.login_state, login_state)
         ):
             raise GoogleIdentityError(400, "Invalid Google OAuth state")
-        try:
-            async with httpx.AsyncClient(transport=self.transport) as client:
-                token_response = await client.post(
-                    GOOGLE_TOKEN_URL,
-                    data={
-                        "code": code,
-                        "client_id": self.settings.google_client_id,
-                        "client_secret": self.settings.google_client_secret,
-                        "redirect_uri": self.callback_uri,
-                        "grant_type": "authorization_code",
-                    },
-                )
-                token_response.raise_for_status()
-                token_data = _json_object(token_response)
-                access_token = _string_value(token_data, "access_token")
-                userinfo_response = await client.get(
-                    GOOGLE_USERINFO_URL,
-                    headers={"Authorization": f"Bearer {access_token}"},
-                )
-                userinfo_response.raise_for_status()
-                profile = _json_object(userinfo_response)
-        except (httpx.HTTPError, ValueError) as exc:
-            raise GoogleIdentityError(502, "Google identity verification failed") from exc
-        if profile.get("email_verified") is not True:
-            raise GoogleIdentityError(403, "Google email is not verified")
-        email = _string_value(profile, "email").lower()
-        google_sub = _string_value(profile, "sub")
-        user = await self._provision_user(email, google_sub)
+        email, google_sub = await exchange_google_identity(
+            self.settings, code, self.transport, self.callback_uri
+        )
+        user = await provision_google_user(self.settings, email, google_sub)
         if not await self.provider.set_pending_user(pending.id, user.id):
             raise GoogleIdentityError(400, "Pending authorization is invalid or expired")
         pending.user_id = user.id
@@ -129,27 +106,7 @@ class GoogleIdentityProvider(IdentityProvider, OAuthLoginStarter):
         return f"{self.settings.public_base_url}/oauth/google/callback"
 
     async def _provision_user(self, email: str, google_sub: str) -> User:
-        async with SessionLocal() as session:
-            user = await session.scalar(select(User).where(User.google_sub == google_sub))
-            if user is None:
-                user = await session.scalar(select(User).where(func.lower(User.email) == email))
-            if user is None:
-                if email not in get_allowed_emails(self.settings):
-                    raise GoogleIdentityError(
-                        403,
-                        "New user registration is restricted to the configured allowlist",
-                    )
-                user = User(
-                    email=email,
-                    timezone=self.settings.default_timezone,
-                    google_sub=google_sub,
-                )
-                session.add(user)
-            else:
-                user.google_sub = google_sub
-            await session.commit()
-            await session.refresh(user)
-            return user
+        return await provision_google_user(self.settings, email, google_sub)
 
 
 def _json_object(response: httpx.Response) -> dict[str, object]:
@@ -157,6 +114,65 @@ def _json_object(response: httpx.Response) -> dict[str, object]:
     if not isinstance(payload, dict):
         raise ValueError("Google response was not an object")
     return cast(dict[str, object], payload)
+
+
+async def exchange_google_identity(
+    settings: Settings,
+    code: str,
+    transport: httpx.AsyncBaseTransport | None = None,
+    callback_uri: str | None = None,
+) -> tuple[str, str]:
+    redirect_uri = callback_uri or f"{settings.public_base_url}/oauth/google/callback"
+    try:
+        async with httpx.AsyncClient(transport=transport) as client:
+            token_response = await client.post(
+                GOOGLE_TOKEN_URL,
+                data={
+                    "code": code,
+                    "client_id": settings.google_client_id,
+                    "client_secret": settings.google_client_secret,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code",
+                },
+            )
+            token_response.raise_for_status()
+            token_data = _json_object(token_response)
+            access_token = _string_value(token_data, "access_token")
+            userinfo_response = await client.get(
+                GOOGLE_USERINFO_URL,
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            userinfo_response.raise_for_status()
+            profile = _json_object(userinfo_response)
+    except (httpx.HTTPError, ValueError) as exc:
+        raise GoogleIdentityError(502, "Google identity verification failed") from exc
+    if profile.get("email_verified") is not True:
+        raise GoogleIdentityError(403, "Google email is not verified")
+    return _string_value(profile, "email").lower(), _string_value(profile, "sub")
+
+
+async def provision_google_user(settings: Settings, email: str, google_sub: str) -> User:
+    async with SessionLocal() as session:
+        user = await session.scalar(select(User).where(User.google_sub == google_sub))
+        if user is None:
+            user = await session.scalar(select(User).where(func.lower(User.email) == email))
+        if user is None:
+            if email not in get_allowed_emails(settings):
+                raise GoogleIdentityError(
+                    403,
+                    "New user registration is restricted to the configured allowlist",
+                )
+            user = User(
+                email=email,
+                timezone=settings.default_timezone,
+                google_sub=google_sub,
+            )
+            session.add(user)
+        else:
+            user.google_sub = google_sub
+        await session.commit()
+        await session.refresh(user)
+        return user
 
 
 def _string_value(payload: dict[str, object], name: str) -> str:
@@ -170,8 +186,13 @@ def create_google_callback_route(
     identity_provider: GoogleIdentityProvider,
     provider: DbOAuthProvider,
     settings: Settings,
+    web_callback: Callable[[Request], Awaitable[Response | None]] | None = None,
 ) -> Route:
     async def callback(request: Request) -> Response:
+        if web_callback is not None:
+            web_response = await web_callback(request)
+            if web_response is not None:
+                return web_response
         try:
             pending, _ = await identity_provider.resolve_callback(request)
         except GoogleIdentityError as exc:
