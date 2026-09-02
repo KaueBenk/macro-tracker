@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Conta · Macro Tracker{% endblock %}
+
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">Preferências</p>
+      <h1>Minha conta</h1>
+    </div>
+  </div>
+
+  <section class="card">
+    <p>
+      <strong>E-mail</strong>
+      <br>
+      {{ user.email }}
+    </p>
+    {% if error %}
+      <p class="notice error">{{ error }}</p>
+    {% endif %}
+    <form class="stack-form" method="post" action="/app/conta">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="timezone">Fuso horário atual</label>
+      <select id="timezone" name="timezone">
+        {% for timezone in timezones %}
+          <option value="{{ timezone }}" {% if timezone == user.timezone %}selected{% endif %}>
+            {{ timezone }}
+          </option>
+        {% endfor %}
+      </select>
+      <button class="button" type="submit">Salvar preferências</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <form method="post" action="/web/logout">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="button danger" type="submit">Sair</button>
+    </form>
+  </section>
+{% endblock %}

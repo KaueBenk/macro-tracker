@@ -1,0 +1,47 @@
+<div class="food-results">
+  {% for food in foods %}
+    <article class="food-result">
+      <div class="food-result-info">
+        <div class="food-result-heading">
+          <strong>{{ food.name }}</strong>
+          {% if food.brand %}
+            <span class="muted">· {{ food.brand }}</span>
+          {% endif %}
+          <span class="food-source">Fonte: {{ food.source or "manual" }}</span>
+          {% if food.attribution %}
+            <small class="attribution">{{ food.attribution }}</small>
+          {% endif %}
+        </div>
+        <div class="food-result-macros">
+          {{ food.kcal }} kcal · P {{ food.protein_g }} g · C {{ food.carbs_g }} g ·
+          G {{ food.fat_g }} g · F {{ food.fiber_g or 0 }} g
+        </div>
+      </div>
+      <form class="food-register-form" method="post" action="/app/entradas">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="food_id" value="{{ food.id }}">
+        <label class="sr-only" for="quantity-{{ food.id }}">Gramas</label>
+        <input
+          id="quantity-{{ food.id }}"
+          name="quantity_g"
+          inputmode="decimal"
+          placeholder="Gramas"
+          required
+        >
+        <label class="sr-only" for="meal-{{ food.id }}">Refeição</label>
+        <select id="meal-{{ food.id }}" name="meal">
+          {% for value, label in meal_labels.items() %}
+            <option value="{{ value.value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <label class="sr-only" for="logged-at-{{ food.id }}">Data e hora</label>
+        <input id="logged-at-{{ food.id }}" name="logged_at" type="datetime-local">
+        <button class="button" type="submit">Registrar</button>
+      </form>
+    </article>
+  {% else %}
+    <p class="muted">
+      Nenhum alimento encontrado. Tente outra busca ou ative as fontes externas.
+    </p>
+  {% endfor %}
+</div>

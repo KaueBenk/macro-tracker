@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Macro Tracker{% endblock %}</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <script src="/static/htmx.min.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/app">Macro Tracker</a>
+      {% if user %}
+        {% set current_path = request.url.path %}
+        <nav class="top-nav" aria-label="Navegação principal">
+          <a
+            href="/app"
+            {% if current_path == "/app" %}class="active" aria-current="page"{% endif %}
+          >Hoje</a>
+          <a
+            href="/app/adicionar"
+            {% if current_path == "/app/adicionar" %}class="active" aria-current="page"{% endif %}
+          >Registrar</a>
+          <a
+            href="/app/alimentos"
+            {% if current_path.startswith("/app/alimentos") %}class="active" aria-current="page"{% endif %}
+          >Alimentos</a>
+          <a
+            href="/app/metas"
+            {% if current_path == "/app/metas" %}class="active" aria-current="page"{% endif %}
+          >Metas</a>
+          <a
+            href="/app/conta"
+            {% if current_path == "/app/conta" %}class="active" aria-current="page"{% endif %}
+          >Conta</a>
+        </nav>
+      {% endif %}
+    </header>
+    <main id="app-content" class="container">
+      {% block content %}{% endblock %}
+    </main>
+    {% if user %}
+      {% set current_path = request.url.path %}
+      <nav class="bottom-nav" aria-label="Navegação móvel">
+        <a
+          href="/app"
+          {% if current_path == "/app" %}class="active" aria-current="page"{% endif %}
+        >Hoje</a>
+        <a
+          href="/app/adicionar"
+          {% if current_path == "/app/adicionar" %}class="active" aria-current="page"{% endif %}
+        >Registrar</a>
+        <a
+          href="/app/alimentos"
+          {% if current_path.startswith("/app/alimentos") %}class="active" aria-current="page"{% endif %}
+        >Alimentos</a>
+        <a
+          href="/app/metas"
+          {% if current_path == "/app/metas" %}class="active" aria-current="page"{% endif %}
+        >Metas</a>
+        <a
+          href="/app/conta"
+          {% if current_path == "/app/conta" %}class="active" aria-current="page"{% endif %}
+        >Conta</a>
+      </nav>
+    {% endif %}
+  </body>
+</html>

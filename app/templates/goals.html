@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Metas · Macro Tracker{% endblock %}
+
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">Planejamento</p>
+      <h1>Metas diárias</h1>
+    </div>
+  </div>
+
+  {% if error %}
+    <p class="notice error">{{ error }}</p>
+  {% endif %}
+
+  <section class="card">
+    <form class="stack-form" method="post" action="/app/metas">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="form-grid">
+        <label>
+          Calorias
+          <input name="kcal" inputmode="decimal" required value="{{ form.get('kcal', '') }}">
+        </label>
+        <label>
+          Proteína (g)
+          <input name="protein_g" inputmode="decimal" required value="{{ form.get('protein_g', '') }}">
+        </label>
+        <label>
+          Carboidrato (g)
+          <input name="carbs_g" inputmode="decimal" required value="{{ form.get('carbs_g', '') }}">
+        </label>
+        <label>
+          Gordura (g)
+          <input name="fat_g" inputmode="decimal" required value="{{ form.get('fat_g', '') }}">
+        </label>
+        <label>
+          Fibra (g)
+          <input name="fiber_g" inputmode="decimal" value="{{ form.get('fiber_g', '') }}">
+        </label>
+        <label>
+          Vigente a partir de
+          <input type="date" name="effective_from" required value="{{ form.get('effective_from', '') }}">
+        </label>
+      </div>
+      <button class="button" type="submit">Salvar meta</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Histórico</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Kcal</th>
+            <th>Proteína</th>
+            <th>Carboidrato</th>
+            <th>Gordura</th>
+            <th>Fibra</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for goal in goals %}
+            <tr>
+              <td>{{ goal.effective_from.strftime("%d/%m/%Y") }}</td>
+              <td>{{ goal.kcal }}</td>
+              <td>{{ goal.protein_g }} g</td>
+              <td>{{ goal.carbs_g }} g</td>
+              <td>{{ goal.fat_g }} g</td>
+              <td>{{ goal.fiber_g or 0 }} g</td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6">Nenhuma meta cadastrada.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}
