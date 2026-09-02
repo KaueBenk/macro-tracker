@@ -8,7 +8,7 @@ import type { ActionResult, UserRead } from "@/lib/types";
 
 export async function updateTimezone(formData: FormData): Promise<ActionResult> {
   try {
-    await apiSend<UserRead>("PATCH", "/api/account/me", {
+    await apiSend<UserRead>("PATCH", "/api/me", {
       timezone: String(formData.get("timezone") ?? ""),
     });
     revalidatePath("/app");

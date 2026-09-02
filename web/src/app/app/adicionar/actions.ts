@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { apiSend, ApiError, UnauthorizedError } from "@/lib/api";
+import { apiSend, ApiError, getSession, UnauthorizedError } from "@/lib/api";
 import { decimalValue, localDateTime, textValue } from "@/lib/forms";
 import type { ActionResult, EntryRead } from "@/lib/types";
 
@@ -16,7 +16,6 @@ function failure(error: unknown): ActionResult {
 }
 
 async function sessionTimezone() {
-  const { getSession } = await import("@/lib/api");
   return (await getSession()).user.timezone;
 }
 

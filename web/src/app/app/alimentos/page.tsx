@@ -89,7 +89,13 @@ export default async function FoodsPage({ searchParams }: PageProps) {
               {food.user_id ? (
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" asChild><Link href={`/app/alimentos?edit=${food.id}`}>Editar</Link></Button>
-                  <ActionForm action={deleteFood} submitLabel="Excluir" className="space-y-0">
+                  <ActionForm
+                    action={deleteFood}
+                    className="space-y-0"
+                    confirmMessage="Excluir este alimento privado?"
+                    submitLabel="Excluir"
+                    submitVariant="destructive"
+                  >
                     <input type="hidden" name="food_id" value={food.id} />
                   </ActionForm>
                 </div>

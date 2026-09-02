@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MealSelect } from "@/components/meal-select";
+import { RemoteSearchToggle } from "@/components/remote-search-toggle";
 import { formatNumber } from "@/components/progress-card";
 import { apiGet, ApiError, getSession, UnauthorizedError } from "@/lib/api";
 import type { FoodRead } from "@/lib/types";
@@ -94,8 +96,8 @@ export default async function AddPage({ searchParams }: PageProps) {
             <Label className="sr-only" htmlFor="food-query">Alimento</Label>
             <Input id="food-query" name="q" defaultValue={query} placeholder="Ex.: arroz integral" />
             <div className="flex items-center gap-3 sm:col-span-2">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="remote" value="true" defaultChecked={remote} />
+              <label className="flex items-center gap-2 text-sm" htmlFor="remote-search">
+                <RemoteSearchToggle defaultChecked={remote} />
                 Buscar em fontes externas
               </label>
               <Button type="submit"><Search className="mr-2 size-4" aria-hidden="true" />Buscar</Button>
@@ -145,10 +147,7 @@ export default async function AddPage({ searchParams }: PageProps) {
               ))}
               <label className="space-y-1 text-sm">
                 <span>Refeição</span>
-                <select name="meal" defaultValue="other" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
-                  <option value="breakfast">Café da manhã</option><option value="lunch">Almoço</option>
-                  <option value="dinner">Jantar</option><option value="snack">Lanche</option><option value="other">Outro</option>
-                </select>
+                <MealSelect />
               </label>
               <label className="space-y-1 text-sm"><span>Data</span><Input type="date" name="logged_date" defaultValue={date} required /></label>
               <label className="space-y-1 text-sm"><span>Hora (opcional)</span><Input type="time" name="logged_time" /></label>

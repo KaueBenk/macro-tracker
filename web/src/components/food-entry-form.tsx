@@ -1,5 +1,6 @@
 import { ActionForm } from "@/components/action-form";
 import { Input } from "@/components/ui/input";
+import { MealSelect } from "@/components/meal-select";
 import type { ActionResult, FoodRead } from "@/lib/types";
 
 type FoodAction = (formData: FormData) => Promise<ActionResult>;
@@ -23,13 +24,7 @@ export function FoodEntryForm({
         </label>
         <label className="space-y-1 text-sm">
           <span>Refeição</span>
-          <select name="meal" defaultValue="other" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
-            <option value="breakfast">Café da manhã</option>
-            <option value="lunch">Almoço</option>
-            <option value="dinner">Jantar</option>
-            <option value="snack">Lanche</option>
-            <option value="other">Outro</option>
-          </select>
+          <MealSelect />
         </label>
         <label className="space-y-1 text-sm">
           <span>Data</span>

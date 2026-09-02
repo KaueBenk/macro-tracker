@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CalendarCheck, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 import { DatePicker } from "@/components/date-picker";
 import { DeleteEntryButton } from "@/components/delete-entry-button";
@@ -168,7 +168,7 @@ export default async function TodayPage({ searchParams }: PageProps) {
             aria-label="Hoje"
           >
             <Link href={`/app?d=${todayInTimezone(session.user.timezone)}`}>
-              <CalendarDays className="size-4 sm:hidden" aria-hidden="true" />
+              <CalendarCheck className="size-4 sm:hidden" aria-hidden="true" />
               <span className="hidden sm:inline">Hoje</span>
             </Link>
           </Button>
