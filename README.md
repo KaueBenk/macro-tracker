@@ -67,20 +67,24 @@ As páginas disponíveis são `/app` (dia e progresso), `/app/adicionar` (busca 
 usam POST/redirect/GET e CSRF. A busca remota só ocorre quando o usuário envia o formulário e
 alimentos de fontes externas sempre mostram sua atribuição.
 
-O novo frontend Next.js fica em `web/` e pode ser executado como um projeto Vercel separado.
-Nesta fase ele implementa a página `/app` e mantém as demais rotas como placeholders; a GUI Jinja
-continua disponível no backend até a paridade. Para desenvolvimento local:
+O frontend Next.js fica em `web/` e é publicado como um projeto Vercel separado
+(`macro-tracker-web`), com root directory `web/`. O deploy atual usa
+<https://macro-tracker-web-seven.vercel.app>. A GUI Jinja continua disponível no backend
+até a paridade ser validada; ela será removida depois.
 
 ```bash
 cd web
 npm install
-cp .env.example .env.local
-npm run dev
+BACKEND_ORIGIN=http://localhost:8000 npm run dev
 ```
 
-Configure `BACKEND_ORIGIN` com a origem do FastAPI. O Next.js faz rewrite somente de `/web/*` e
-`/oauth/*`, mantendo o cookie da sessão web first-party; as leituras e escritas da API são feitas
-server-to-server pelo cliente do frontend, sem chamadas `/api/*` no navegador.
+Configure `BACKEND_ORIGIN` com a origem do FastAPI (`http://localhost:8000` localmente).
+No backend publicado, configure `WEB_BASE_URL` com a URL do frontend e `SECRET_KEY` com uma
+chave aleatória longa. Cadastre no cliente OAuth do Google a redirect URI
+`https://macro-tracker-web-seven.vercel.app/oauth/google/callback` (além da redirect URI
+do backend). O Next.js faz rewrite somente de `/web/*` e `/oauth/*`, mantendo o cookie da sessão
+web first-party; as leituras e escritas da API são feitas server-to-server, sem chamadas
+`/api/*` no navegador.
 
 Os alimentos globais incluem a Tabela Brasileira de Composição de Alimentos (TACO),
 4ª edição, do NEPA/UNICAMP (<https://nepa.unicamp.br/publicacoes/tabela-taco-excel/>).
@@ -154,6 +158,8 @@ uv run alembic check
    - `APP_ENV`: `production`
    - `DEFAULT_TIMEZONE`: por exemplo `America/Sao_Paulo`
    - `LOG_LEVEL`: `INFO`
+   - `WEB_BASE_URL`: URL pública do projeto frontend Next.js
+   - `SECRET_KEY`: chave aleatória longa para sessões web e CSRF
    `SERVERLESS` não precisa ser configurada: é detectada automaticamente quando a Vercel
    define `VERCEL`.
 3. Clique em **Deploy**. Para habilitar deploys automáticos a cada push, primeiro adicione
@@ -199,6 +205,8 @@ Para configurar o Google Cloud:
    tipo **Web application**.
 2. Adicione como redirect URI:
    `https://macro-tracker-alpha-six.vercel.app/oauth/google/callback`
+   e também:
+   `https://macro-tracker-web-seven.vercel.app/oauth/google/callback`
 3. Configure `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` na Vercel e `ALLOWED_EMAILS`
    com os e-mails autorizados a criar contas. Use os escopos `openid email`.
 4. Mantenha `OAUTH_REQUIRE_CONSENT=true` para exibir a tela de autorização do Macro Tracker;

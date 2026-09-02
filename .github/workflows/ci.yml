@@ -48,3 +48,27 @@ jobs:
           uv run alembic check
       - name: Tests
         run: uv run pytest -q
+
+  web:
+    runs-on: ubuntu-latest
+    env:
+      BACKEND_ORIGIN: http://localhost:8000
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Set up Node
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
