@@ -167,3 +167,8 @@ class UserRead(BaseModel):
 class UserUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     timezone: str
+
+
+class SessionRead(BaseModel):
+    user: UserRead
+    csrf_token: str | None

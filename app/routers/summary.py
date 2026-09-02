@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api_auth import get_api_user
 from app.db import get_session
 from app.models import Entry, Goal, Meal, User
 from app.schemas import DailySummary, Progress, RangeSummary, Totals
-from app.security import get_current_user
 from app.services.nutrition import MacroValues, day_bounds, effective_goal, totals
 
 router = APIRouter(prefix="/summary", tags=["summary"])
@@ -140,7 +140,7 @@ async def build_range_summary(
 @router.get("/daily", response_model=DailySummary)
 async def daily_summary(
     summary_date: date | None = Query(default=None, alias="date"),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_api_user),
     session: AsyncSession = Depends(get_session),
 ) -> DailySummary:
     target = summary_date or datetime.now(ZoneInfo(user.timezone)).date()
@@ -151,7 +151,7 @@ async def daily_summary(
 async def range_summary(
     date_from: date = Query(alias="from"),
     date_to: date = Query(alias="to"),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_api_user),
     session: AsyncSession = Depends(get_session),
 ) -> RangeSummary:
     return await build_range_summary(date_from, date_to, user, session)

@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api_auth import get_api_user
 from app.db import get_session
 from app.models import Food, User
 from app.schemas import FoodCreate, FoodRead, FoodUpdate
-from app.security import get_current_user
 from app.services.barcode import lookup_barcode
 from app.services.food_search import search_foods
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/foods", tags=["foods"])
 @router.post("", response_model=FoodRead, status_code=status.HTTP_201_CREATED)
 async def create_food(
     payload: FoodCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_api_user),
     session: AsyncSession = Depends(get_session),
 ) -> Food:
     food = Food(user_id=user.id, **payload.model_dump())
@@ -33,7 +33,7 @@ async def list_foods(
     limit: int = Query(default=50, ge=1, le=200),
     sources: list[str] | None = Query(default=None),
     remote: bool = Query(default=False),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_api_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[Food]:
     return await search_foods(
@@ -49,7 +49,7 @@ async def list_foods(
 @router.get("/barcode/{barcode}", response_model=FoodRead)
 async def get_food_by_barcode(
     barcode: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_api_user),
     session: AsyncSession = Depends(get_session),
 ) -> Food:
     food = await lookup_barcode(session, user=user, barcode=barcode)
@@ -61,7 +61,7 @@ async def get_food_by_barcode(
 @router.get("/{food_id}", response_model=FoodRead)
 async def get_food(
     food_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_api_user),
     session: AsyncSession = Depends(get_session),
 ) -> Food:
     result = await session.execute(
@@ -77,7 +77,7 @@ async def get_food(
 async def update_food(
     food_id: uuid.UUID,
     payload: FoodUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_api_user),
     session: AsyncSession = Depends(get_session),
 ) -> Food:
     result = await session.execute(select(Food).where(Food.id == food_id, Food.user_id == user.id))
@@ -113,7 +113,7 @@ async def update_food(
 @router.delete("/{food_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_food(
     food_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_api_user),
     session: AsyncSession = Depends(get_session),
 ) -> None:
     result = await session.execute(select(Food).where(Food.id == food_id, Food.user_id == user.id))

@@ -24,6 +24,7 @@ O `.env.example` usa:
 | `DEFAULT_TIMEZONE` | Fuso horário padrão de novos usuários | `America/Sao_Paulo` |
 | `LOG_LEVEL` | Nível de log | `INFO` |
 | `PUBLIC_BASE_URL` | URL pública usada pelo OAuth e pelos metadados MCP | `http://localhost:8000` |
+| `WEB_BASE_URL` | Domínio do frontend web usado pelos redirects OAuth do navegador; vazio usa `PUBLIC_BASE_URL` | — |
 | `SECRET_KEY` | Chave HMAC dos tokens CSRF da sessão web (obrigatória em produção) | `development-only-secret-key-change-me` |
 | `SERVERLESS` | Habilita `NullPool` e configurações do pgbouncer | `false` |
 | `DEV_LOGIN_EMAIL` | E-mail usado pelo login OAuth de desenvolvimento | `voce@example.com` |
@@ -106,6 +107,11 @@ Os endpoints REST autenticados usam `Authorization: Bearer <token>`, por exemplo
 ```bash
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/summary/daily
 ```
+
+O frontend Next.js pode usar rewrites para `/api`, `/oauth` e `/web`, mantendo navegador e
+backend na mesma origem. Configure `WEB_BASE_URL` com o domínio do frontend quando ele for
+diferente do backend; a redirect URI do navegador (`WEB_BASE_URL/oauth/google/callback`) e a do
+MCP (`PUBLIC_BASE_URL/oauth/google/callback`) devem coexistir no cliente OAuth do Google.
 
 Lint, tipos e migrações:
 

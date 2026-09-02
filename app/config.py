@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     default_timezone: str = "America/Sao_Paulo"
     log_level: str = "INFO"
     public_base_url: str = "http://localhost:8000"
+    web_base_url: str = ""
     secret_key: str = ""
     google_client_id: str = ""
     google_client_secret: str = ""
@@ -66,6 +67,15 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_public_base_url(cls, value: str) -> str:
         return value.rstrip("/")
+
+    @field_validator("web_base_url", mode="before")
+    @classmethod
+    def normalize_web_base_url(cls, value: str) -> str:
+        return value.rstrip("/")
+
+    @property
+    def effective_web_base_url(self) -> str:
+        return self.web_base_url or self.public_base_url
 
 
 @lru_cache

@@ -6,10 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api_auth import get_api_user
 from app.db import get_session
 from app.models import Entry, Food, User
 from app.schemas import EntryCreate, EntryRead, EntryUpdate
-from app.security import get_current_user
 from app.services.nutrition import MacroValues, resolve_entry_macros
 
 router = APIRouter(prefix="/entries", tags=["entries"])
@@ -40,7 +40,7 @@ def entry_overrides(payload: EntryCreate | EntryUpdate) -> MacroValues:
 @router.post("", response_model=EntryRead, status_code=status.HTTP_201_CREATED)
 async def create_entry(
     payload: EntryCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_api_user),
     session: AsyncSession = Depends(get_session),
 ) -> Entry:
     food = await find_food(payload.food_id, user, session)
@@ -77,7 +77,7 @@ async def list_entries(
     entry_date: date | None = Query(default=None, alias="date"),
     date_from: date | None = Query(default=None, alias="from"),
     date_to: date | None = Query(default=None, alias="to"),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_api_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[Entry]:
     from app.services.nutrition import day_bounds
@@ -100,7 +100,7 @@ async def list_entries(
 @router.get("/{entry_id}", response_model=EntryRead)
 async def get_entry(
     entry_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_api_user),
     session: AsyncSession = Depends(get_session),
 ) -> Entry:
     result = await session.execute(
@@ -116,7 +116,7 @@ async def get_entry(
 async def update_entry(
     entry_id: uuid.UUID,
     payload: EntryUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_api_user),
     session: AsyncSession = Depends(get_session),
 ) -> Entry:
     result = await session.execute(
@@ -181,7 +181,7 @@ async def update_entry(
 @router.delete("/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_entry(
     entry_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_api_user),
     session: AsyncSession = Depends(get_session),
 ) -> None:
     result = await session.execute(

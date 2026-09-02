@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import hashlib
-import hmac
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -14,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import RedirectResponse, Response
 
-from app.config import Settings, get_settings
+from app.config import Settings
 from app.db import SessionLocal, get_session
 from app.models import User, WebLoginState, WebSession
 from app.oauth.google import (
@@ -24,60 +22,37 @@ from app.oauth.google import (
     provision_google_user,
 )
 from app.security import create_token, hash_token
+from app.web.session import (
+    WEB_LOGIN_COOKIE,
+    WEB_LOGIN_TTL,
+    WEB_SESSION_COOKIE,
+    WEB_SESSION_TTL,
+    csrf_token,
+    resolve_web_user,
+    secure_cookies,
+)
 
-WEB_LOGIN_COOKIE = "mt_web_login"
-WEB_SESSION_COOKIE = "mt_web_session"
-WEB_LOGIN_TTL = timedelta(minutes=10)
-WEB_SESSION_TTL = timedelta(days=30)
+__all__ = [
+    "WEB_LOGIN_COOKIE",
+    "WEB_LOGIN_TTL",
+    "WEB_SESSION_COOKIE",
+    "WEB_SESSION_TTL",
+    "WebAuth",
+    "csrf_token",
+    "get_web_user",
+    "require_csrf",
+    "resolve_web_user",
+    "secure_cookies",
+    "templates",
+]
 
 templates = Jinja2Templates(directory=Path(__file__).resolve().parent.parent / "templates")
-
-
-def _secure_cookies(settings: Settings) -> bool:
-    return settings.public_base_url.lower().startswith("https://")
 
 
 def _valid_next_path(value: str | None) -> str:
     if value is None or not value.startswith("/app") or value.startswith("//"):
         return "/app"
     return value
-
-
-def csrf_token(raw_session_token: str, settings: Settings) -> str:
-    if settings.app_env.lower() == "production" and not settings.secret_key:
-        raise RuntimeError("SECRET_KEY must be configured in production")
-    return hmac.new(
-        settings.secret_key.encode("utf-8"),
-        raw_session_token.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-
-
-def _request_settings(request: Request) -> Settings:
-    return getattr(request.app.state, "settings", get_settings())
-
-
-async def resolve_web_user(session: AsyncSession, request: Request) -> User | None:
-    raw_token = request.cookies.get(WEB_SESSION_COOKIE)
-    if not raw_token:
-        return None
-    token_hash = hash_token(raw_token)
-    record = await session.scalar(select(WebSession).where(WebSession.token_hash == token_hash))
-    if record is None or not secrets.compare_digest(record.token_hash, token_hash):
-        return None
-    if record.expires_at <= datetime.now(UTC):
-        await session.delete(record)
-        await session.commit()
-        return None
-    user = await session.get(User, record.user_id)
-    if user is None:
-        return None
-    record.last_seen_at = datetime.now(UTC)
-    try:
-        await session.commit()
-    except Exception:
-        await session.rollback()
-    return user
 
 
 async def get_web_user(
@@ -104,7 +79,7 @@ async def require_csrf(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Web session required")
     form = await request.form()
     supplied = str(form.get("csrf_token") or "")
-    expected = csrf_token(raw_token, _request_settings(request))
+    expected = csrf_token(raw_token, request.app.state.settings)
     if not supplied or not secrets.compare_digest(supplied, expected):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token")
     return web_user
@@ -144,7 +119,7 @@ class WebAuth:
         query = urlencode(
             {
                 "client_id": self.settings.google_client_id,
-                "redirect_uri": f"{self.settings.public_base_url}/oauth/google/callback",
+                "redirect_uri": f"{self.settings.effective_web_base_url}/oauth/google/callback",
                 "response_type": "code",
                 "scope": "openid email",
                 "access_type": "online",
@@ -163,7 +138,7 @@ class WebAuth:
             max_age=int(WEB_LOGIN_TTL.total_seconds()),
             expires=int(WEB_LOGIN_TTL.total_seconds()),
             path="/",
-            secure=_secure_cookies(self.settings),
+            secure=secure_cookies(self.settings),
             httponly=True,
             samesite="lax",
         )
@@ -199,7 +174,7 @@ class WebAuth:
                 self.settings,
                 code,
                 self.transport,
-                f"{self.settings.public_base_url}/oauth/google/callback",
+                f"{self.settings.effective_web_base_url}/oauth/google/callback",
             )
             user = await provision_google_user(self.settings, email, google_sub)
         except GoogleIdentityError as exc:
@@ -239,7 +214,7 @@ class WebAuth:
             max_age=int(WEB_SESSION_TTL.total_seconds()),
             expires=int(WEB_SESSION_TTL.total_seconds()),
             path="/",
-            secure=_secure_cookies(self.settings),
+            secure=secure_cookies(self.settings),
             httponly=True,
             samesite="lax",
         )
