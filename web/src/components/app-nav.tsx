@@ -82,12 +82,12 @@ export function AppNav() {
               href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-h-14 flex-col items-center justify-center gap-1 rounded-md px-0.5 text-[10px] text-muted-foreground transition-colors",
+                "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-0.5 text-[10px] text-muted-foreground transition-colors",
                 active && "bg-accent font-medium text-accent-foreground",
               )}
             >
               <Icon className="size-4" aria-hidden="true" />
-              <span>{label}</span>
+              <span className="max-w-full truncate">{label}</span>
             </Link>
           );
         })}

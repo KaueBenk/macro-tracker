@@ -91,3 +91,8 @@ export interface RangeSummary {
   days: DailySummary[];
   averages: Totals;
 }
+
+export interface ActionResult {
+  ok: boolean;
+  message: string;
+}

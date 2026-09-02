@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 import { DatePicker } from "@/components/date-picker";
 import { DeleteEntryButton } from "@/components/delete-entry-button";
@@ -48,6 +48,10 @@ function displayDate(value: string) {
     dateStyle: "full",
     timeZone: "UTC",
   }).format(new Date(`${value}T12:00:00Z`));
+}
+
+function sentenceCase(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function displayTime(value: string, timezone: string) {
@@ -137,8 +141,8 @@ export default async function TodayPage({ searchParams }: PageProps) {
       <header className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-primary">Seu dia</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight capitalize">
-            {displayDate(day)}
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+            {sentenceCase(displayDate(day))}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Fuso horário: {session.user.timezone}
@@ -156,8 +160,17 @@ export default async function TodayPage({ searchParams }: PageProps) {
               <ChevronRight className="size-4" aria-hidden="true" />
             </Link>
           </Button>
-          <Button variant="secondary" asChild className="hidden sm:inline-flex">
-            <Link href={`/app?d=${todayInTimezone(session.user.timezone)}`}>Hoje</Link>
+          <Button
+            variant="secondary"
+            size="icon"
+            asChild
+            className="size-10 shrink-0 sm:h-10 sm:w-auto sm:px-4"
+            aria-label="Hoje"
+          >
+            <Link href={`/app?d=${todayInTimezone(session.user.timezone)}`}>
+              <CalendarDays className="size-4 sm:hidden" aria-hidden="true" />
+              <span className="hidden sm:inline">Hoje</span>
+            </Link>
           </Button>
         </div>
       </header>
