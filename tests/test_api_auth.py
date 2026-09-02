@@ -4,10 +4,14 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+from fastapi import HTTPException
 from httpx import AsyncClient
+from starlette.requests import Request
 
+from app.api_auth import get_api_user
 from app.config import get_settings
 from app.db import SessionLocal
+from app.main import app
 from app.models import Entry, Meal, User, WebSession
 from app.security import hash_token
 from app.web.session import WEB_SESSION_COOKIE, csrf_token
@@ -146,3 +150,22 @@ async def test_api_requires_auth_and_web_cookie_isolation(client: AsyncClient) -
     entries = await client.get("/api/entries")
     assert entries.status_code == 200
     assert entries.json() == []
+
+
+@pytest.mark.asyncio
+async def test_non_ascii_csrf_header_returns_forbidden_instead_of_500() -> None:
+    _, raw_token = await create_web_identity("api-nonascii-csrf@example.com")
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/entries",
+        "headers": [
+            (b"cookie", f"{WEB_SESSION_COOKIE}={raw_token}".encode()),
+        ],
+        "app": app,
+    }
+    request = Request(scope)
+    async with SessionLocal() as session:
+        with pytest.raises(HTTPException) as error:
+            await get_api_user(request, credentials=None, session=session, csrf_header="não")
+    assert error.value.status_code == 403

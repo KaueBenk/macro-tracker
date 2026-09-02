@@ -67,6 +67,21 @@ As páginas disponíveis são `/app` (dia e progresso), `/app/adicionar` (busca 
 usam POST/redirect/GET e CSRF. A busca remota só ocorre quando o usuário envia o formulário e
 alimentos de fontes externas sempre mostram sua atribuição.
 
+O novo frontend Next.js fica em `web/` e pode ser executado como um projeto Vercel separado.
+Nesta fase ele implementa a página `/app` e mantém as demais rotas como placeholders; a GUI Jinja
+continua disponível no backend até a paridade. Para desenvolvimento local:
+
+```bash
+cd web
+npm install
+cp .env.example .env.local
+npm run dev
+```
+
+Configure `BACKEND_ORIGIN` com a origem do FastAPI. O Next.js faz rewrite somente de `/web/*` e
+`/oauth/*`, mantendo o cookie da sessão web first-party; as leituras e escritas da API são feitas
+server-to-server pelo cliente do frontend, sem chamadas `/api/*` no navegador.
+
 Os alimentos globais incluem a Tabela Brasileira de Composição de Alimentos (TACO),
 4ª edição, do NEPA/UNICAMP (<https://nepa.unicamp.br/publicacoes/tabela-taco-excel/>).
 Atribua e cite o NEPA/UNICAMP ao utilizar esses dados. A busca ignora acentos e exige
@@ -108,10 +123,12 @@ Os endpoints REST autenticados usam `Authorization: Bearer <token>`, por exemplo
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/summary/daily
 ```
 
-O frontend Next.js pode usar rewrites para `/api`, `/oauth` e `/web`, mantendo navegador e
-backend na mesma origem. Configure `WEB_BASE_URL` com o domínio do frontend quando ele for
-diferente do backend; a redirect URI do navegador (`WEB_BASE_URL/oauth/google/callback`) e a do
-MCP (`PUBLIC_BASE_URL/oauth/google/callback`) devem coexistir no cliente OAuth do Google.
+O frontend Next.js usa rewrites apenas para `/oauth` e `/web`, mantendo navegador e backend na
+mesma origem aparente. Configure `BACKEND_ORIGIN` no projeto `web/` com a origem do FastAPI;
+`/api/*` é acessado exclusivamente server-to-server. Configure `WEB_BASE_URL` com o domínio do
+frontend quando ele for diferente do backend; a redirect URI do navegador
+(`WEB_BASE_URL/oauth/google/callback`) e a do MCP (`PUBLIC_BASE_URL/oauth/google/callback`) devem
+coexistir no cliente OAuth do Google.
 
 Lint, tipos e migrações:
 

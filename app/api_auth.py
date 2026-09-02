@@ -48,6 +48,8 @@ async def get_api_user(
         expected = (
             csrf_token(raw_token, request.app.state.settings) if raw_token is not None else ""
         )
-        if csrf_header is None or not secrets.compare_digest(csrf_header, expected):
+        if csrf_header is None or not secrets.compare_digest(
+            csrf_header.encode("utf-8"), expected.encode("utf-8")
+        ):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token")
     return user
