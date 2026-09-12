@@ -23,6 +23,14 @@ import {
 } from "@/components/ui/chart";
 import { formatNumber } from "@/components/progress-card";
 
+const integerFormatter = new Intl.NumberFormat("pt-BR", {
+  maximumFractionDigits: 0,
+});
+
+function formatAxisTick(value: number) {
+  return integerFormatter.format(value);
+}
+
 const chartColors = [
   "var(--chart-1)",
   "var(--chart-2)",
@@ -137,7 +145,7 @@ export function MealCaloriesChart({ data }: { data: { meal: string; kcal: number
         <YAxis
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value: number) => formatNumber(value)}
+          tickFormatter={formatAxisTick}
           width={56}
         />
         <Tooltip
@@ -195,7 +203,7 @@ export function CaloriesLineChart({
         <YAxis
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value: number) => formatNumber(value)}
+          tickFormatter={formatAxisTick}
           width={56}
         />
         <Legend content={<ChartLegendContent />} />
@@ -250,7 +258,7 @@ export function MacroStackedChart({
         <YAxis
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value: number) => formatNumber(value)}
+          tickFormatter={formatAxisTick}
           width={56}
         />
         <Legend content={<ChartLegendContent />} />
