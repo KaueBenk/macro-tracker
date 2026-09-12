@@ -8,7 +8,7 @@ where the source requires it and is displayed by food search responses.
 | --- | --- | --- |
 | TACO 4 | Non-commercial use with mandatory citation to NEPA/UNICAMP. | Versioned repository dump in `data/taco.json`; import as global foods. |
 | TBCA 7.3 | CC BY-NC-ND 4.0: no total or partial reproduction, commercial use, or alteration; mandatory citation. | Use only for this personal, non-commercial project; query on demand and write results directly into the private database without versioning or redistributing the data. |
-| Open Food Facts | Database ODbL, contents DbCL, images CC BY-SA; attribution and share-alike obligations apply when publishing the database. | P3 API plus cache, primarily for barcodes; do not publish the database. Use v3 for products, v2 for search, and an identifying User-Agent. |
+| Open Food Facts | Database ODbL, contents DbCL, images CC BY-SA; attribution and share-alike obligations apply when publishing the database. | API plus cache, primarily for barcodes; do not publish the database. Use v3 on `world.openfoodfacts.org` for products and `search.openfoodfacts.org` for text search, with an identifying User-Agent. |
 | USDA FoodData Central | CC0 1.0; citation suggested. API requires a free api.data.gov key and allows 1,000 requests/hour/IP. | API integration in P2 with opt-in `remote=true`; materialize results as global foods and cache indefinitely (`expires_at = NULL`). |
 | FatSecret Basic | Free tier: 5,000 calls/day; US-only dataset; attribution required. Developer Terms prohibit caching user data over 24 hours except listed indefinitely storable IDs. | Optional API integration with 24-hour nutrient cache and daily purge; the entry's macro snapshot is the user's own record. |
 
@@ -60,13 +60,16 @@ user registers. The API limits are 15 requests/minute/IP for product reads and
 10 requests/minute/IP for searches. Search must not be used as search-as-you-type.
 For more than a few hundred products, Open Food Facts requests that consumers
 use the dump. Requests must include a User-Agent identifying the app, version,
-and contact. API v3 is recommended for product reads; it does not expose a
-stable search endpoint, so this integration uses the available v2 search
-endpoint for name queries. Product reads use
-`GET /api/v3/product/{barcode}.json`; name search uses `GET /api/v2/search`
-with restricted fields. Our decision is API plus indefinite cache (`ttl=None`),
-with barcode as the primary use case and textual remote search only by explicit
-request, never typeahead.
+and contact. Product reads use the v3 endpoint on the `world` host:
+`GET https://world.openfoodfacts.org/api/v3/product/{barcode}.json`.
+Text search uses the Search-a-licious endpoint on
+`https://search.openfoodfacts.org/search`, embedding
+`countries_tags:"en:brazil"` in the query so results are restricted to Brazil.
+Search requests use the configured provider timeout and retry once after one
+second on HTTP 429 or 503; a second rate-limit response becomes a provider
+error and is degraded by the food-search service. Our decision is API plus
+indefinite cache (`ttl=None`), with barcode as the primary use case and textual
+remote search only by explicit request, never typeahead.
 
 ## USDA FoodData Central
 

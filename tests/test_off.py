@@ -3,7 +3,7 @@ import pytest
 
 from app.config import Settings
 from app.providers.base import ProviderError
-from app.providers.off import OFF_ATTRIBUTION, OFF_FIELDS, OFFProvider
+from app.providers.off import OFF_ATTRIBUTION, OFF_FIELDS, OFF_SEARCH_FIELDS, OFFProvider
 
 
 def _product(**overrides: object) -> dict[str, object]:
@@ -49,28 +49,34 @@ async def test_off_fetch_parses_product_and_request_headers() -> None:
 
 
 @pytest.mark.asyncio
-async def test_off_search_uses_v2_fields_and_parses_kj_fallback() -> None:
+async def test_off_search_uses_search_api_and_parses_kj_fallback() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/api/v2/search"
-        assert request.url.params["search_terms"] == "biscoito"
+        assert request.url.host == "search.openfoodfacts.org"
+        assert request.url.path == "/search"
+        assert request.url.params["q"] == 'biscoito countries_tags:"en:brazil"'
         assert request.url.params["page_size"] == "3"
-        assert request.url.params["fields"] == OFF_FIELDS
+        assert request.url.params["fields"] == OFF_SEARCH_FIELDS
         return httpx.Response(
             200,
             json={
-                "products": [
-                    _product(
-                        product_name="",
-                        nutriments={
+                "hits": [
+                    {
+                        "code": "2",
+                        "product_name": "Arroz parboilizado",
+                        "brands": ["Arroz Selecto"],
+                        "categories_tags": ["en:plant-based-foods", "en:parboiled-rices"],
+                        "countries_tags": ["en:brazil"],
+                        "lang": "pt",
+                        "nutriments": {
                             "energy-kj_100g": 418.4,
                             "proteins_100g": 5,
+                            "carbohydrates_100g": 20,
+                            "fat_100g": 1,
+                            "fiber_100g": 2,
                         },
-                    ),
-                    _product(
-                        code="2",
-                        product_name="Sem energia",
-                        nutriments={"proteins_100g": 4},
-                    ),
+                    },
+                    {"code": "3", "product_name": None, "nutriments": {}},
+                    {"code": "4", "product_name": "Sem nutrientes"},
                 ]
             },
         )
@@ -81,10 +87,48 @@ async def test_off_search_uses_v2_fields_and_parses_kj_fallback() -> None:
     )
     foods = await provider.search("biscoito", 3)
     assert len(foods) == 1
-    assert foods[0].name == "Biscuit"
+    assert foods[0].name == "Arroz parboilizado"
+    assert foods[0].brand == "Arroz Selecto"
+    assert foods[0].category == "parboiled rices"
+    assert foods[0].source_ref == "2"
+    assert foods[0].barcode == "2"
+    assert foods[0].locale == "pt"
     assert foods[0].kcal == pytest.approx(100)
     assert foods[0].protein_g == 5
-    assert foods[0].carbs_g == 0
+    assert foods[0].carbs_g == 20
+    assert foods[0].fat_g == 1
+    assert foods[0].fiber_g == 2
+
+
+@pytest.mark.asyncio
+async def test_off_search_sanitizes_query_and_skips_empty_queries() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"hits": []})
+
+    provider = OFFProvider(Settings(), transport=httpx.MockTransport(handler))
+    assert await provider.search('+ - && || ! ( ) { } [ ] ^ " ~ * ? : \\ /', 3) == []
+    assert requests == []
+    await provider.search('arroz "integral"', 3)
+    assert requests[0].url.params["q"] == 'arroz integral countries_tags:"en:brazil"'
+
+
+@pytest.mark.asyncio
+async def test_off_search_retries_rate_limit_once() -> None:
+    calls = 0
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(503)
+        return httpx.Response(200, json={"hits": []})
+
+    provider = OFFProvider(Settings(), transport=httpx.MockTransport(handler))
+    assert await provider.search("arroz", 3) == []
+    assert calls == 2
 
 
 @pytest.mark.asyncio
