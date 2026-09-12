@@ -57,20 +57,11 @@ uv run pytest -q
 
 ## Interface web
 
-A interface server-rendered está disponível em `/app`. Ela usa o mesmo login Google configurado
-para o OAuth do sistema, mantém uma sessão própria em cookie HttpOnly e oferece logout protegido
-por CSRF. Em produção, configure `SECRET_KEY` com um valor aleatório longo. O frontend usa
-Jinja2, HTMX servido localmente e CSS próprio dentro do FastAPI, sem SPA, CDN ou etapa de build.
-
-As páginas disponíveis são `/app` (dia e progresso), `/app/adicionar` (busca e registro),
-`/app/alimentos`, `/app/metas`, `/app/historico` e `/app/conta`. Todas exigem login; formulários
-usam POST/redirect/GET e CSRF. A busca remota só ocorre quando o usuário envia o formulário e
-alimentos de fontes externas sempre mostram sua atribuição.
-
-O frontend Next.js fica em `web/` e é publicado como um projeto Vercel separado
+A interface web é o frontend Next.js em `web/`, publicado como um projeto Vercel separado
 (`macro-tracker-web`), com root directory `web/`. O deploy atual usa
-<https://macro-tracker-web-seven.vercel.app>. A GUI Jinja continua disponível no backend
-até a paridade ser validada; ela será removida depois.
+<https://macro-tracker-web-seven.vercel.app>. O backend mantém as rotas `/web/*`, `/oauth/*`
+e `/app*` somente para autenticação, callbacks e redirects compatíveis; a GUI Jinja/HTMX foi
+removida depois da paridade funcional com o Next.js.
 
 ```bash
 cd web

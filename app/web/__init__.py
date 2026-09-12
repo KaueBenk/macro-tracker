@@ -1,1 +1,1 @@
-"""Server-rendered browser interface."""
+"""Browser authentication helpers."""

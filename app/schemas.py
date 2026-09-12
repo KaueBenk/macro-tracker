@@ -157,6 +157,16 @@ class RangeSummary(BaseModel):
     averages: Totals
 
 
+class TopFood(BaseModel):
+    food_id: uuid.UUID | None
+    label: str
+    entries: int
+    total_kcal: float
+    total_protein_g: float
+    total_quantity_g: float | None
+    avg_kcal: float
+
+
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID

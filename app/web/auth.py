@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import secrets
 from datetime import UTC, datetime
-from pathlib import Path
 from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import RedirectResponse, Response
@@ -43,16 +41,18 @@ __all__ = [
     "require_csrf",
     "resolve_web_user",
     "secure_cookies",
-    "templates",
 ]
-
-templates = Jinja2Templates(directory=Path(__file__).resolve().parent.parent / "templates")
 
 
 def _valid_next_path(value: str | None) -> str:
     if value is None or not value.startswith("/app") or value.startswith("//"):
         return "/app"
     return value
+
+
+def _frontend_url(settings: Settings, path: str = "/") -> str:
+    base = settings.effective_web_base_url.rstrip("/")
+    return base if path == "/" else f"{base}{path}"
 
 
 async def get_web_user(
@@ -204,7 +204,7 @@ class WebAuth:
             await session.delete(locked_state)
             await session.commit()
         response = RedirectResponse(
-            next_path,
+            _frontend_url(self.settings, next_path),
             status_code=status.HTTP_302_FOUND,
             headers={"Cache-Control": "no-store"},
         )
@@ -243,8 +243,25 @@ class WebAuth:
         router = APIRouter()
 
         @router.get("/")
-        async def login_page(request: Request) -> Response:
-            return templates.TemplateResponse(request=request, name="login.html", context={})
+        async def login_page() -> Response:
+            return RedirectResponse(
+                self.settings.effective_web_base_url,
+                status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+            )
+
+        @router.get("/app")
+        async def app_page() -> Response:
+            return RedirectResponse(
+                _frontend_url(self.settings, "/app"),
+                status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+            )
+
+        @router.get("/app/{path:path}")
+        async def app_path(path: str) -> Response:
+            return RedirectResponse(
+                _frontend_url(self.settings, f"/app/{path}"),
+                status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+            )
 
         @router.get("/web/login")
         async def login(request: Request) -> Response:

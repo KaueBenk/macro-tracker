@@ -26,7 +26,6 @@ from app.web.auth import (
     WebAuth,
     csrf_token,
 )
-from app.web.pages import router as web_pages_router
 
 
 def _settings(
@@ -54,7 +53,6 @@ def _app(
     provider = DbOAuthProvider()
     google = GoogleIdentityProvider(provider, settings, handler)
     web = WebAuth(settings, handler)
-    application.include_router(web_pages_router)
     application.include_router(web.router())
     application.router.routes.append(
         create_google_callback_route(
@@ -113,7 +111,7 @@ async def test_web_login_and_callback_create_session() -> None:
             follow_redirects=False,
         )
         assert callback.status_code == 302
-        assert callback.headers["location"] == "/app/summary"
+        assert callback.headers["location"] == "http://localhost:8000/app/summary"
         assert WEB_SESSION_COOKIE in callback.cookies
         assert f"{WEB_LOGIN_COOKIE}=" in callback.headers["set-cookie"]
 
@@ -141,7 +139,7 @@ async def test_web_login_rejects_external_next(next_value: str) -> None:
             params={"code": "code", "state": state},
             follow_redirects=False,
         )
-        assert callback.headers["location"] == "/app"
+        assert callback.headers["location"] == "http://localhost:8000/app"
 
 
 @pytest.mark.asyncio
@@ -172,7 +170,7 @@ async def test_web_callback_rejects_other_browser_and_expired_state() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_requires_session_and_logout_requires_csrf() -> None:
+async def test_frontend_routes_redirect_and_logout_requires_csrf() -> None:
     settings = _settings()
     application = _app(settings, _transport())
     user = User(email="web@example.com", timezone="America/Sao_Paulo")
@@ -191,13 +189,13 @@ async def test_app_requires_session_and_logout_requires_csrf() -> None:
         )
         await session.commit()
     async with await _client(application) as client:
-        missing = await client.get("/app", follow_redirects=False)
-        assert missing.status_code == 302
-        assert missing.headers["location"].startswith("/web/login?next=%2Fapp")
+        root = await client.get("/", follow_redirects=False)
+        assert root.status_code == 307
+        assert root.headers["location"] == "http://localhost:8000"
+        app_page = await client.get("/app/historico", follow_redirects=False)
+        assert app_page.status_code == 307
+        assert app_page.headers["location"] == "http://localhost:8000/app/historico"
         client.cookies.set(WEB_SESSION_COOKIE, raw_session)
-        page = await client.get("/app")
-        assert page.status_code == 200
-        assert "Hoje" in page.text
         no_csrf = await client.post("/web/logout", follow_redirects=False)
         assert no_csrf.status_code == 403
         csrf = csrf_token(raw_session, settings)
@@ -220,3 +218,15 @@ async def test_web_login_requires_google_configuration() -> None:
         response = await client.get("/web/login")
     assert response.status_code == 503
     assert "Google OAuth login is not configured" in response.text
+
+
+@pytest.mark.asyncio
+async def test_frontend_redirects_use_web_base_url() -> None:
+    settings = _settings()
+    settings.web_base_url = "https://macro-tracker-web.example"
+    application = _app(settings, _transport())
+    async with await _client(application) as client:
+        root = await client.get("/", follow_redirects=False)
+        app_page = await client.get("/app/historico", follow_redirects=False)
+    assert root.headers["location"] == "https://macro-tracker-web.example"
+    assert app_page.headers["location"] == "https://macro-tracker-web.example/app/historico"

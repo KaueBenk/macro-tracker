@@ -1,7 +1,7 @@
-# macro-tracker — spec técnica (etapa 2: backend + MCP + interface web + CI/CD)
+# macro-tracker — spec técnica (backend + MCP + interface web + CI/CD)
 
 App pessoal de contagem de macronutrientes e calorias, consumível por (a) agentes de IA via
-servidor MCP remoto, (b) API REST (que a GUI web da etapa 2 vai usar).
+servidor MCP remoto e (b) API REST consumida pelo frontend web.
 
 ## Stack
 
@@ -20,7 +20,7 @@ servidor MCP remoto, (b) API REST (que a GUI web da etapa 2 vai usar).
 ```
 app/
   __init__.py
-  main.py            # create_app(): monta REST + /mcp, /app, /health
+  main.py            # create_app(): monta REST + /mcp, redirects web, /health
   config.py          # Settings (pydantic-settings)
   db.py              # engine async, sessionmaker, get_session dependency
   models.py          # ORM
@@ -40,8 +40,6 @@ app/
     auth.py          # middleware ASGI de bearer token + contextvar do usuário
   web/
     auth.py          # login Google, sessão de navegador e CSRF
-  templates/         # páginas Jinja2 server-rendered
-  static/            # CSS próprio, sem etapa de build
 alembic/ (env.py, versions/)
 tests/
 .github/workflows/ci.yml
@@ -237,25 +235,11 @@ Licenças, atribuições, limites e decisões para todas as fontes estão em
    meta vigente por data, summary diário com e sem meta, handshake MCP + ao menos duas tools
    via HTTP)
 
-## Interface web (W1/W2)
+## Interface web
 
-`GET /app` exige uma sessão de navegador iniciada em `GET /web/login`. O callback Google é
-compartilhado com o fluxo MCP em `/oauth/google/callback` e despacha pelo state, preservando
-as regras existentes de allowlist e `email_verified`. Logout em `POST /web/logout` exige um
-token CSRF derivado por HMAC do token de sessão, usando `SECRET_KEY`; essa chave é obrigatória
-em produção. A camada é server-rendered com Jinja2, HTMX e CSS próprio, sem SPA, bundle ou
-build frontend. W2 implementa as páginas server-rendered em português brasileiro:
-
-- `/app`: progresso diário de calorias e macros, metas, entradas agrupadas por refeição,
-  navegação de data e exclusão HTMX;
-- `/app/adicionar`: busca local ou remota explícita por texto, lookup por código de barras e
-  entrada avulsa;
-- `/app/alimentos`: biblioteca visível ao usuário, com CRUD somente para alimentos privados;
-- `/app/metas`: criação/atualização de metas com histórico;
-- `/app/historico`: resumo dos últimos 7 ou 30 dias e médias;
-- `/app/conta`: e-mail, fuso horário e logout.
-
-As views chamam os serviços existentes de busca, barcode, nutrição e summary, sem chamar a API
-REST por HTTP nem duplicar suas regras. O HTMX é servido como arquivo local em `/static`, e a
-interface usa CSS próprio responsivo, sem SPA, CDN ou etapa de build. A atribuição de todo
-alimento que tenha `attribution` é renderizada junto do alimento.
+O frontend Next.js em `web/` é publicado como um projeto Vercel separado com root directory
+`web/`. Suas leituras chamam a API REST server-to-server e suas escritas usam server actions.
+O backend mantém `/web/login`, `/web/logout` e `/oauth/google/callback` para a sessão web,
+CSRF e OAuth; as rotas legadas `/` e `/app*` respondem com redirects 307 para `WEB_BASE_URL`.
+Configure `BACKEND_ORIGIN` no frontend, `WEB_BASE_URL` no backend e a redirect URI do frontend
+no cliente OAuth do Google. A antiga GUI Jinja/HTMX foi removida após a paridade funcional.

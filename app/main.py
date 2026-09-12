@@ -1,6 +1,5 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI
 from mcp.server.auth.routes import (
@@ -8,7 +7,6 @@ from mcp.server.auth.routes import (
     create_protected_resource_routes,
 )
 from starlette.routing import Route
-from starlette.staticfiles import StaticFiles
 
 from app.config import get_auth_settings, get_settings
 from app.mcp.server import create_mcp_app
@@ -18,9 +16,8 @@ from app.oauth.identity import (
     create_consent_routes,
     create_login_route,
 )
-from app.routers import account, entries, foods, goals, summary
+from app.routers import account, entries, foods, goals, insights, summary
 from app.web.auth import WebAuth
-from app.web.pages import router as web_pages_router
 
 
 def create_app() -> FastAPI:
@@ -37,11 +34,6 @@ def create_app() -> FastAPI:
 
     application = FastAPI(title="Macro Tracker", lifespan=lifespan)
     application.state.settings = settings
-    application.mount(
-        "/static",
-        StaticFiles(directory=Path(__file__).parent / "static"),
-        name="static",
-    )
 
     @application.get("/health")
     async def health() -> dict[str, str]:
@@ -51,6 +43,7 @@ def create_app() -> FastAPI:
     application.include_router(entries.router, prefix="/api")
     application.include_router(goals.router, prefix="/api")
     application.include_router(summary.router, prefix="/api")
+    application.include_router(insights.router, prefix="/api")
     application.include_router(account.router, prefix="/api")
     application.router.routes.extend(
         create_auth_routes(
@@ -89,7 +82,6 @@ def create_app() -> FastAPI:
             web_callback=web_auth.callback,
         )
     )
-    application.include_router(web_pages_router)
     application.include_router(web_auth.router())
     application.router.routes.append(Route("/mcp", mcp_app))
     application.router.routes.append(Route("/mcp/", mcp_app))
