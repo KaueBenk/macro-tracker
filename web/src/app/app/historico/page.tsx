@@ -59,7 +59,12 @@ export default async function HistoryPage({ searchParams }: PageProps) {
         </div>
         <div className="flex flex-wrap gap-2" aria-label="Período do histórico">
           {periodOptions.map((option) => (
-            <Button key={option} variant={days === option ? "default" : "outline"} size="sm" asChild>
+            <Button
+              key={option}
+              variant={days === option ? "default" : "outline"}
+              size="sm"
+              asChild
+            >
               <Link href={`/app/historico?days=${option}`}>{option} dias</Link>
             </Button>
           ))}
@@ -72,12 +77,14 @@ export default async function HistoryPage({ searchParams }: PageProps) {
           <CardDescription>Consumo diário e meta vigente no período.</CardDescription>
         </CardHeader>
         <CardContent>
-          <CaloriesLineChart data={summary.days.map((day) => ({
-            date: day.date,
-            label: day.date.slice(5).split("-").reverse().join("/"),
-            kcal: day.consumed.kcal,
-            goal: day.goal?.kcal ?? null,
-          }))} />
+          <CaloriesLineChart
+            data={summary.days.map((day) => ({
+              date: day.date,
+              label: day.date.slice(5).split("-").reverse().join("/"),
+              kcal: day.consumed.kcal,
+              goal: day.goal?.kcal ?? null,
+            }))}
+          />
         </CardContent>
       </Card>
 
@@ -87,25 +94,57 @@ export default async function HistoryPage({ searchParams }: PageProps) {
           <CardDescription>Gramas de proteína, carboidrato e gordura registrados.</CardDescription>
         </CardHeader>
         <CardContent>
-          <MacroStackedChart data={summary.days.map((day) => ({
-            label: day.date.slice(5).split("-").reverse().join("/"),
-            protein: day.consumed.protein_g,
-            carbs: day.consumed.carbs_g,
-            fat: day.consumed.fat_g,
-          }))} />
+          <MacroStackedChart
+            data={summary.days.map((day) => ({
+              label: day.date.slice(5).split("-").reverse().join("/"),
+              protein: day.consumed.protein_g,
+              carbs: day.consumed.carbs_g,
+              fat: day.consumed.fat_g,
+            }))}
+          />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Adesão no período</CardTitle>
-          <CardDescription>Comparação com os {days} dias anteriores ao período selecionado.</CardDescription>
+          <CardDescription>
+            Comparação com os {days} dias anteriores ao período selecionado.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Metric label="Dentro da meta kcal" value={goalDays.length ? `${Math.round((adherenceDays.length / goalDays.length) * 100)}%` : "—"} detail={`${goalDays.length ? goalDays.length - adherenceDays.length : 0} fora da faixa; ${days - goalDays.length} sem meta ignorado(s).`} />
-          <Metric label="Atingimento de proteína" value={percentage(proteinAchievement)} detail={`${proteinGoalDays.length} dias com meta de proteína.`} />
-          <Metric label="Média kcal" value={`${formatNumber(summary.averages.kcal)} kcal`} detail={kcalChange === null ? "Sem comparação anterior." : `${formatNumber(Math.abs(kcalChange))}% ${kcalChange >= 0 ? "acima" : "abaixo"} do período anterior.`} />
-          <Metric label="Média proteína" value={`${formatNumber(summary.averages.protein_g)} g`} detail={proteinChange === null ? "Sem comparação anterior." : `${formatNumber(Math.abs(proteinChange))}% ${proteinChange >= 0 ? "acima" : "abaixo"} do período anterior.`} />
+          <Metric
+            label="Dentro da meta kcal"
+            value={
+              goalDays.length
+                ? `${Math.round((adherenceDays.length / goalDays.length) * 100)}%`
+                : "—"
+            }
+            detail={`${goalDays.length ? goalDays.length - adherenceDays.length : 0} fora da faixa; ${days - goalDays.length} sem meta ignorado(s).`}
+          />
+          <Metric
+            label="Atingimento de proteína"
+            value={percentage(proteinAchievement)}
+            detail={`${proteinGoalDays.length} dias com meta de proteína.`}
+          />
+          <Metric
+            label="Média kcal"
+            value={`${formatNumber(summary.averages.kcal)} kcal`}
+            detail={
+              kcalChange === null
+                ? "Sem comparação anterior."
+                : `${formatNumber(Math.abs(kcalChange))}% ${kcalChange >= 0 ? "acima" : "abaixo"} do período anterior.`
+            }
+          />
+          <Metric
+            label="Média proteína"
+            value={`${formatNumber(summary.averages.protein_g)} g`}
+            detail={
+              proteinChange === null
+                ? "Sem comparação anterior."
+                : `${formatNumber(Math.abs(proteinChange))}% ${proteinChange >= 0 ? "acima" : "abaixo"} do período anterior.`
+            }
+          />
         </CardContent>
       </Card>
 
@@ -114,21 +153,39 @@ export default async function HistoryPage({ searchParams }: PageProps) {
           <CardTitle>Calendário de registros</CardTitle>
           <CardDescription>Selecione um dia para abrir seu acompanhamento.</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-7 gap-2">
-          {summary.days.map((day) => {
-            const recorded = day.entries_count > 0;
-            return (
-              <Link
-                key={day.date}
-                href={`/app?d=${day.date}`}
-                title={`${dateLabel(day.date, session.user.timezone)}: ${recorded ? "com registro" : "sem registro"}`}
-                aria-label={`${dateLabel(day.date, session.user.timezone)}: ${recorded ? "com registro" : "sem registro"}`}
-                className={`flex aspect-square items-center justify-center rounded-md border text-xs transition-colors hover:border-primary ${recorded ? "border-primary/60 bg-primary/20 text-primary" : "text-muted-foreground"}`}
-              >
-                {day.date.slice(8)}
-              </Link>
-            );
-          })}
+        <CardContent>
+          <div className="mb-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-2">
+              <span className="size-3 rounded-sm border border-primary/60 bg-primary/20" />
+              Com registro
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="size-3 rounded-sm border" />
+              Sem registro
+            </span>
+          </div>
+          <div className="grid grid-cols-7 gap-2">
+            {summary.days.map((day) => {
+              const recorded = day.entries_count > 0;
+              const status = recorded ? "com registro" : "sem registro";
+              const date = dateLabel(day.date, session.user.timezone);
+              return (
+                <Link
+                  key={day.date}
+                  href={`/app?d=${day.date}`}
+                  title={`${date}: ${status}`}
+                  aria-label={`${date}: ${status}`}
+                  className={`flex aspect-square items-center justify-center rounded-md border text-xs transition-colors hover:border-primary ${
+                    recorded
+                      ? "border-primary/60 bg-primary/20 text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {day.date.slice(8)}
+                </Link>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 
@@ -139,22 +196,73 @@ export default async function HistoryPage({ searchParams }: PageProps) {
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {topFoods.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Nenhum alimento registrado no período. <Link className="text-primary hover:underline" href="/app/adicionar">Registrar alimento</Link></p>
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Nenhum alimento registrado no período.{" "}
+              <Link className="text-primary hover:underline" href="/app/adicionar">
+                Registrar alimento
+              </Link>
+            </p>
           ) : (
             <table className="w-full min-w-[520px] text-left text-sm">
-              <thead><tr className="border-b text-muted-foreground"><th className="p-3">Alimento</th><th className="p-3">Entradas</th><th className="p-3">Total</th><th className="p-3">Média</th></tr></thead>
-              <tbody>{topFoods.map((food) => <tr key={`${food.food_id ?? "description"}-${food.label}`} className="border-b last:border-0"><td className="p-3 font-medium">{food.label}</td><td className="p-3">{food.entries}</td><td className="p-3">{formatNumber(food.total_kcal)} kcal</td><td className="p-3">{formatNumber(food.avg_kcal)} kcal</td></tr>)}</tbody>
+              <thead>
+                <tr className="border-b text-muted-foreground">
+                  <th className="p-3">Alimento</th>
+                  <th className="p-3">Entradas</th>
+                  <th className="p-3">Total</th>
+                  <th className="p-3">Média</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topFoods.map((food) => (
+                  <tr
+                    key={`${food.food_id ?? "description"}-${food.label}`}
+                    className="border-b last:border-0"
+                  >
+                    <td className="p-3 font-medium">{food.label}</td>
+                    <td className="p-3">{food.entries}</td>
+                    <td className="p-3">{formatNumber(food.total_kcal)} kcal</td>
+                    <td className="p-3">{formatNumber(food.avg_kcal)} kcal</td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           )}
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Resumo diário</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Resumo diário</CardTitle>
+        </CardHeader>
         <CardContent className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-sm">
-            <thead><tr className="border-b text-muted-foreground"><th className="p-3">Dia</th><th className="p-3">Consumido</th><th className="p-3">Meta kcal</th><th className="p-3">Entradas</th></tr></thead>
-            <tbody>{summary.days.map((day) => <tr key={day.date} className="border-b last:border-0"><td className="p-3"><Link className="text-primary hover:underline" href={`/app?d=${day.date}`}>{dateLabel(day.date, session.user.timezone)}</Link></td><td className="p-3">{formatNumber(day.consumed.kcal)} kcal</td><td className="p-3">{day.goal ? `${formatNumber(day.goal.kcal)} kcal` : "—"}</td><td className="p-3">{day.entries_count}</td></tr>)}</tbody>
+            <thead>
+              <tr className="border-b text-muted-foreground">
+                <th className="p-3">Dia</th>
+                <th className="p-3">Consumido</th>
+                <th className="p-3">Meta kcal</th>
+                <th className="p-3">Entradas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.days.map((day) => (
+                <tr key={day.date} className="border-b last:border-0">
+                  <td className="p-3">
+                    <Link
+                      className="text-primary hover:underline"
+                      href={`/app?d=${day.date}`}
+                    >
+                      {dateLabel(day.date, session.user.timezone)}
+                    </Link>
+                  </td>
+                  <td className="p-3">{formatNumber(day.consumed.kcal)} kcal</td>
+                  <td className="p-3">
+                    {day.goal ? `${formatNumber(day.goal.kcal)} kcal` : "—"}
+                  </td>
+                  <td className="p-3">{day.entries_count}</td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </CardContent>
       </Card>
@@ -163,5 +271,11 @@ export default async function HistoryPage({ searchParams }: PageProps) {
 }
 
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return <div className="rounded-lg border p-4"><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-xl font-semibold">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div>;
+  return (
+    <div className="rounded-lg border p-4">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xl font-semibold">{value}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+    </div>
+  );
 }

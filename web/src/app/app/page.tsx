@@ -145,7 +145,9 @@ export default async function TodayPage({ searchParams }: PageProps) {
   for (const entry of entries) {
     grouped.set(entry.meal, [...(grouped.get(entry.meal) ?? []), entry]);
   }
-  const missingMeals = mealOrder.filter((meal) => !grouped.has(meal));
+  const missingMeals = mealOrder
+    .filter((meal) => meal !== "other")
+    .filter((meal) => !grouped.has(meal));
   const remainingKcal = remaining?.kcal ?? null;
   const estimatedPerMeal =
     remainingKcal !== null && missingMeals.length > 0
@@ -213,7 +215,10 @@ export default async function TodayPage({ searchParams }: PageProps) {
       <AnalyticsComparison
         summary={summary}
         week={week}
-        mealData={mealOrder.map((meal) => ({ meal: mealLabels[meal], kcal: summary.by_meal[meal].kcal }))}
+        mealData={mealOrder.map((meal) => ({
+          meal: mealLabels[meal],
+          kcal: summary.by_meal[meal].kcal,
+        }))}
         missingMeals={missingMeals.map((meal) => mealLabels[meal])}
         estimatedPerMeal={estimatedPerMeal}
         streak={streak}

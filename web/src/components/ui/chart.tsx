@@ -49,7 +49,7 @@ function ChartContainer({
       <div
         data-chart={chartId}
         className={cn(
-          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border/50 [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector]:outline-none [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-none",
+          "flex aspect-video min-w-0 max-w-full justify-center overflow-hidden text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border/50 [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector]:outline-none [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-none",
           className,
         )}
         style={
@@ -125,4 +125,34 @@ function ChartTooltipContent({
   )
 }
 
-export { ChartContainer, ChartTooltipContent, useChart }
+function ChartLegendContent({
+  payload,
+}: {
+  payload?: readonly {
+    dataKey?: string | number
+    value?: React.ReactNode
+    color?: string
+  }[]
+}) {
+  const { config } = useChart()
+  if (!payload?.length) return null
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 pt-3">
+      {payload.map((item) => {
+        const key = String(item.dataKey ?? item.value ?? "")
+        const itemConfig = config[key]
+        return (
+          <div key={key} className="flex items-center gap-2 text-xs">
+            <span
+              className="size-2.5 shrink-0 rounded-[2px]"
+              style={{ backgroundColor: item.color }}
+            />
+            <span>{itemConfig?.label ?? item.value}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export { ChartContainer, ChartLegendContent, ChartTooltipContent, useChart }
