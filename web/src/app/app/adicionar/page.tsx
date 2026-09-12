@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import Link from "next/link";
 
 import { ActionForm } from "@/components/action-form";
 import { FoodEntryForm } from "@/components/food-entry-form";
@@ -10,22 +11,14 @@ import { MealSelect } from "@/components/meal-select";
 import { RemoteSearchToggle } from "@/components/remote-search-toggle";
 import { formatNumber } from "@/components/progress-card";
 import { apiGet, ApiError, getSession, UnauthorizedError } from "@/lib/api";
-import type { FoodRead } from "@/lib/types";
+import { dateInTimezone, shiftDate } from "@/lib/dates";
+import type { FoodRead, TopFood } from "@/lib/types";
 
 import { createFoodEntry, createManualEntry } from "./actions";
 
 type PageProps = {
-  searchParams: Promise<{ q?: string; remote?: string; barcode?: string }>;
+  searchParams: Promise<{ q?: string; remote?: string; barcode?: string; recent?: string }>;
 };
-
-function todayInTimezone(timezone: string) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
 
 function FoodResult({ food, date }: { food: FoodRead; date: string }) {
   return (
@@ -52,12 +45,28 @@ function FoodResult({ food, date }: { food: FoodRead; date: string }) {
 export default async function AddPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const session = await getSession();
-  const date = todayInTimezone(session.user.timezone);
+  const date = dateInTimezone(session.user.timezone);
   const query = params.q?.trim() ?? "";
   const barcode = params.barcode?.trim() ?? "";
   const remote = params.remote === "true";
+  const recentId = params.recent?.trim() ?? "";
   let foods: FoodRead[] = [];
   let searchError: string | null = null;
+  const recentFoods = await apiGet<TopFood[]>("/api/insights/top-foods", {
+    from: shiftDate(date, -29),
+    to: date,
+    limit: "10",
+  });
+
+  if (recentId) {
+    try {
+      const recentFood = await apiGet<FoodRead>(`/api/foods/${encodeURIComponent(recentId)}`);
+      foods = [recentFood];
+    } catch (error) {
+      if (error instanceof UnauthorizedError) throw error;
+      searchError = error instanceof ApiError ? error.message : "Não foi possível carregar o alimento recente.";
+    }
+  }
 
   if (query) {
     try {
@@ -86,6 +95,33 @@ export default async function AddPage({ searchParams }: PageProps) {
         <p className="text-sm font-medium text-primary">Registro</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Adicionar alimento</h1>
       </header>
+      <Card>
+        <CardHeader>
+          <CardTitle>Recentes</CardTitle>
+          <CardDescription>Seus alimentos e registros mais frequentes nos últimos 30 dias.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {recentFoods.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Ainda não há registros recentes. <Link className="text-primary hover:underline" href="/app/adicionar?q=">Buscar um alimento</Link></p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {recentFoods.map((food) => (
+                <div key={`${food.food_id ?? "description"}-${food.label}`} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{food.label}</p>
+                    <p className="text-xs text-muted-foreground">{food.entries} {food.entries === 1 ? "registro" : "registros"} · {formatNumber(food.total_kcal)} kcal</p>
+                  </div>
+                  {food.food_id ? (
+                    <Button variant="outline" size="sm" asChild><Link href={`/app/adicionar?recent=${food.food_id}`}>Usar</Link></Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Entrada avulsa</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Buscar por texto</CardTitle>

@@ -18,7 +18,7 @@ export function ActionForm({
   submitVariant = "default",
 }: {
   action: ServerAction;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
   confirmMessage?: string;
   submitLabel?: string;

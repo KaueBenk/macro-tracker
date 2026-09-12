@@ -92,6 +92,16 @@ export interface RangeSummary {
   averages: Totals;
 }
 
+export interface TopFood {
+  food_id: string | null;
+  label: string;
+  entries: number;
+  total_kcal: number;
+  total_protein_g: number;
+  total_quantity_g: number | null;
+  avg_kcal: number;
+}
+
 export interface ActionResult {
   ok: boolean;
   message: string;

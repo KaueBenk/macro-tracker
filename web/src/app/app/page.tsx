@@ -1,16 +1,19 @@
 import Link from "next/link";
 import { CalendarCheck, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
+import { AnalyticsComparison } from "@/components/dashboard-analytics";
+import { ActionForm } from "@/components/action-form";
 import { DatePicker } from "@/components/date-picker";
+import { DuplicateEntryButton } from "@/components/duplicate-entry-button";
 import { DeleteEntryButton } from "@/components/delete-entry-button";
 import { ProgressCard, formatNumber, totalsForProgress } from "@/components/progress-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { apiGet, getSession } from "@/lib/api";
-import type { DailySummary, EntryRead, FoodRead, Meal } from "@/lib/types";
+import type { DailySummary, EntryRead, FoodRead, Meal, RangeSummary } from "@/lib/types";
 
-import { deleteEntry } from "@/app/app/actions";
+import { copyPreviousDay, deleteEntry, duplicateEntry } from "@/app/app/actions";
 
 const mealLabels: Record<Meal, string> = {
   breakfast: "Café da manhã",
@@ -92,7 +95,10 @@ function EntryRow({
           {formatNumber(entry.fiber_g ?? 0)} g
         </p>
       </div>
-      <DeleteEntryButton action={deleteEntry.bind(null, entry.id)} />
+      <div className="flex shrink-0 items-center">
+        <DuplicateEntryButton action={duplicateEntry.bind(null, entry.id)} />
+        <DeleteEntryButton action={deleteEntry.bind(null, entry.id)} />
+      </div>
     </div>
   );
 }
@@ -106,9 +112,13 @@ export default async function TodayPage({ searchParams }: PageProps) {
   const session = await getSession();
   const requestedDate = Array.isArray(params.d) ? params.d[0] : params.d;
   const day = validDate(requestedDate, session.user.timezone);
-  const [summary, entries] = await Promise.all([
+  const previousDay = shiftDate(day, -1);
+  const [summary, entries, week, month, previousEntries] = await Promise.all([
     apiGet<DailySummary>("/api/summary/daily", { date: day }),
     apiGet<EntryRead[]>("/api/entries", { date: day }),
+    apiGet<RangeSummary>("/api/summary/range", { from: shiftDate(day, -6), to: day }),
+    apiGet<RangeSummary>("/api/summary/range", { from: shiftDate(day, -29), to: day }),
+    apiGet<EntryRead[]>("/api/entries", { date: previousDay }),
   ]);
 
   const foodIds = [
@@ -134,6 +144,17 @@ export default async function TodayPage({ searchParams }: PageProps) {
   const grouped = new Map<Meal, EntryRead[]>();
   for (const entry of entries) {
     grouped.set(entry.meal, [...(grouped.get(entry.meal) ?? []), entry]);
+  }
+  const missingMeals = mealOrder.filter((meal) => !grouped.has(meal));
+  const remainingKcal = remaining?.kcal ?? null;
+  const estimatedPerMeal =
+    remainingKcal !== null && missingMeals.length > 0
+      ? Math.max(0, remainingKcal) / missingMeals.length
+      : null;
+  let streak = 0;
+  for (let index = month.days.length - 1; index >= 0; index -= 1) {
+    if (month.days[index].entries_count === 0) break;
+    streak += 1;
   }
 
   return (
@@ -189,6 +210,16 @@ export default async function TodayPage({ searchParams }: PageProps) {
         ))}
       </section>
 
+      <AnalyticsComparison
+        summary={summary}
+        week={week}
+        mealData={mealOrder.map((meal) => ({ meal: mealLabels[meal], kcal: summary.by_meal[meal].kcal }))}
+        missingMeals={missingMeals.map((meal) => mealLabels[meal])}
+        estimatedPerMeal={estimatedPerMeal}
+        streak={streak}
+        recordedDays={month.days.filter((item) => item.entries_count > 0).length}
+      />
+
       {!summary.goal && (
         <Card className="mt-6 border-dashed">
           <CardContent className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
@@ -209,12 +240,30 @@ export default async function TodayPage({ searchParams }: PageProps) {
               {summary.entries_count === 1 ? "registro" : "registros"} no dia
             </p>
           </div>
-          <Button asChild>
-            <Link href="/app/adicionar">
-              <Plus className="mr-2 size-4" aria-hidden="true" />
-              Registrar
-            </Link>
-          </Button>
+          <div className="flex flex-wrap justify-end gap-2">
+            {previousEntries.length > 0 ? (
+              <ActionForm
+                action={copyPreviousDay.bind(null, day)}
+                className="space-y-0"
+                confirmMessage="Copiar todas as entradas do dia anterior?"
+                submitLabel="Copiar dia anterior"
+                submitVariant="outline"
+              />
+            ) : (
+              <>
+                <Button variant="outline" size="sm" disabled title="O dia anterior não tem entradas">
+                  Copiar dia anterior
+                </Button>
+                <span className="hidden self-center text-xs text-muted-foreground sm:inline">Sem entradas ontem</span>
+              </>
+            )}
+            <Button asChild>
+              <Link href="/app/adicionar">
+                <Plus className="mr-2 size-4" aria-hidden="true" />
+                Registrar
+              </Link>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {entries.length === 0 ? (
