@@ -17,7 +17,13 @@ import type { FoodRead, TopFood } from "@/lib/types";
 import { createFoodEntry, createManualEntry } from "./actions";
 
 type PageProps = {
-  searchParams: Promise<{ q?: string; remote?: string; barcode?: string; recent?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    search?: string;
+    remote?: string;
+    barcode?: string;
+    recent?: string;
+  }>;
 };
 
 function FoodResult({ food, date }: { food: FoodRead; date: string }) {
@@ -46,10 +52,11 @@ export default async function AddPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const session = await getSession();
   const date = dateInTimezone(session.user.timezone);
-  const query = params.q?.trim() ?? "";
+  const query = (params.q ?? params.search ?? "").trim();
   const barcode = params.barcode?.trim() ?? "";
   const remote = params.remote === "true";
   const recentId = params.recent?.trim() ?? "";
+  const hasFoodLookup = Boolean(query || barcode || recentId);
   let foods: FoodRead[] = [];
   let searchError: string | null = null;
   const recentFoods = await apiGet<TopFood[]>("/api/insights/top-foods", {
@@ -143,7 +150,7 @@ export default async function AddPage({ searchParams }: PageProps) {
           {(query || barcode) && !searchError && foods.length === 0 && (
             <p className="mt-5 text-sm text-muted-foreground">Nenhum alimento encontrado.</p>
           )}
-          {(query || barcode) && foods.length > 0 && (
+          {hasFoodLookup && foods.length > 0 && (
             <div className="mt-5">{foods.map((food) => <FoodResult key={food.id} food={food} date={date} />)}</div>
           )}
         </CardContent>
