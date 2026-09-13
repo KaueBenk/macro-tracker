@@ -1,0 +1,1 @@
+"""Macro tracker application."""
